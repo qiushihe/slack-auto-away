@@ -24,23 +24,6 @@ resource "aws_s3_bucket_acl" "lambda_bucket" {
   acl        = "private"
 }
 
-# -------------------------------------------------------------------------------------------------
-
-data "archive_file" "dummy_functions" {
-  type        = "zip"
-  source_dir  = "${path.module}/src/functions/dummy"
-  output_path = "${path.module}/.archives/dummy-functions.zip"
-}
-
-resource "aws_s3_object" "dummy_functions" {
-  bucket = aws_s3_bucket.lambda_bucket.id
-  key    = "dummy-functions.zip"
-  source = data.archive_file.dummy_functions.output_path
-  etag   = filemd5(data.archive_file.dummy_functions.output_path)
-}
-
-# -------------------------------------------------------------------------------------------------
-
 resource "aws_iam_role" "lambda_exec" {
   name = "slack-auto-away-lambda-exec"
 
@@ -60,72 +43,6 @@ resource "aws_iam_role" "lambda_exec" {
 resource "aws_iam_role_policy_attachment" "lambda_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
   role       = aws_iam_role.lambda_exec.name
-}
-
-resource "aws_lambda_function" "dummy_hello" {
-  function_name = "DummyHello"
-
-  role    = aws_iam_role.lambda_exec.arn
-  runtime = "nodejs18.x"
-  handler = "hello.handler"
-
-  s3_bucket        = aws_s3_bucket.lambda_bucket.id
-  s3_key           = aws_s3_object.dummy_functions.key
-  source_code_hash = data.archive_file.dummy_functions.output_base64sha256
-
-  environment {
-    variables = {
-      BASE_URL      = aws_apigatewayv2_stage.lambda.invoke_url
-      CLIENT_ID     = var.slack_app_client_id
-      CLIENT_SECRET = var.slack_app_client_secret
-    }
-  }
-}
-
-resource "aws_cloudwatch_log_group" "dummy_hello" {
-  name              = "/aws/lambda/${aws_lambda_function.dummy_hello.function_name}"
-  retention_in_days = 30
-}
-
-resource "aws_lambda_function" "dummy_who" {
-  function_name = "DummyWho"
-
-  role    = aws_iam_role.lambda_exec.arn
-  runtime = "nodejs18.x"
-  handler = "who.handler"
-
-  s3_bucket        = aws_s3_bucket.lambda_bucket.id
-  s3_key           = aws_s3_object.dummy_functions.key
-  source_code_hash = data.archive_file.dummy_functions.output_base64sha256
-
-  environment {
-    variables = {
-      BASE_URL = aws_apigatewayv2_stage.lambda.invoke_url
-    }
-  }
-}
-
-resource "aws_cloudwatch_log_group" "dummy_who" {
-  name              = "/aws/lambda/${aws_lambda_function.dummy_who.function_name}"
-  retention_in_days = 30
-}
-
-# -------------------------------------------------------------------------------------------------
-
-resource "aws_lambda_permission" "dummy_hello" {
-  statement_id  = "AllowExecutionFromAPIGateway"
-  action        = "lambda:InvokeFunction"
-  principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_apigatewayv2_api.lambda.execution_arn}/*/*"
-  function_name = aws_lambda_function.dummy_hello.function_name
-}
-
-resource "aws_lambda_permission" "dummy_who" {
-  statement_id  = "AllowExecutionFromAPIGateway"
-  action        = "lambda:InvokeFunction"
-  principal     = "apigateway.amazonaws.com"
-  source_arn    = "${aws_apigatewayv2_api.lambda.execution_arn}/*/*"
-  function_name = aws_lambda_function.dummy_who.function_name
 }
 
 resource "aws_apigatewayv2_api" "lambda" {
@@ -162,28 +79,104 @@ resource "aws_apigatewayv2_stage" "lambda" {
   }
 }
 
-resource "aws_apigatewayv2_integration" "dummy_hello" {
-  api_id             = aws_apigatewayv2_api.lambda.id
-  integration_uri    = aws_lambda_function.dummy_hello.invoke_arn
-  integration_type   = "AWS_PROXY"
-  integration_method = "POST"
+# -------------------------------------------------------------------------------------------------
+
+module "dummy_functions" {
+  source          = "./modules/aws-lambda-functions"
+  bucket_id       = aws_s3_bucket.lambda_bucket.id
+  source_dir      = "${abspath(path.module)}/src/functions/dummy"
+  output_dir      = "${abspath(path.module)}/.archives"
+  output_filename = "dummy-functions.zip"
 }
 
-resource "aws_apigatewayv2_route" "dummy_hello" {
-  api_id    = aws_apigatewayv2_api.lambda.id
-  route_key = "GET /dummy-hello"
-  target    = "integrations/${aws_apigatewayv2_integration.dummy_hello.id}"
+module "dummy_functions_hello" {
+  source           = "./modules/aws-lambda-function"
+  function_name    = "DummyHello"
+  function_handler = "hello"
+  function_method  = "GET"
+  function_path    = "/dummy-hello"
+
+  s3_bucket        = module.dummy_functions.archive_bucket
+  s3_key           = module.dummy_functions.archive_key
+  source_code_hash = module.dummy_functions.archive_base64sha256
+
+  environment_variables = {
+    BASE_URL  = aws_apigatewayv2_stage.lambda.invoke_url
+    CLIENT_ID = var.slack_app_client_id
+  }
+
+  role_arn         = aws_iam_role.lambda_exec.arn
+  execution_arn    = aws_apigatewayv2_api.lambda.execution_arn
+  api_id           = aws_apigatewayv2_api.lambda.id
 }
 
-resource "aws_apigatewayv2_integration" "dummy_who" {
-  api_id             = aws_apigatewayv2_api.lambda.id
-  integration_uri    = aws_lambda_function.dummy_who.invoke_arn
-  integration_type   = "AWS_PROXY"
-  integration_method = "POST"
+module "dummy_functions_who" {
+  source           = "./modules/aws-lambda-function"
+  function_name    = "DummyWho"
+  function_handler = "who"
+  function_method  = "GET"
+  function_path    = "/dummy-who"
+
+  s3_bucket        = module.dummy_functions.archive_bucket
+  s3_key           = module.dummy_functions.archive_key
+  source_code_hash = module.dummy_functions.archive_base64sha256
+
+  environment_variables = {
+    BASE_URL = aws_apigatewayv2_stage.lambda.invoke_url
+  }
+
+  role_arn         = aws_iam_role.lambda_exec.arn
+  execution_arn    = aws_apigatewayv2_api.lambda.execution_arn
+  api_id           = aws_apigatewayv2_api.lambda.id
 }
 
-resource "aws_apigatewayv2_route" "dummy_who" {
-  api_id    = aws_apigatewayv2_api.lambda.id
-  route_key = "GET /dummy-who"
-  target    = "integrations/${aws_apigatewayv2_integration.dummy_who.id}"
+module "oauth_functions" {
+  source          = "./modules/aws-lambda-functions"
+  bucket_id       = aws_s3_bucket.lambda_bucket.id
+  source_dir      = "${abspath(path.module)}/src/functions/oauth"
+  output_dir      = "${abspath(path.module)}/.archives"
+  output_filename = "oauth-functions.zip"
+}
+
+module "oauth_functions_start" {
+  source           = "./modules/aws-lambda-function"
+  function_name    = "OAuthStart"
+  function_handler = "start"
+  function_method  = "GET"
+  function_path    = "/oauth-start"
+
+  s3_bucket        = module.oauth_functions.archive_bucket
+  s3_key           = module.oauth_functions.archive_key
+  source_code_hash = module.oauth_functions.archive_base64sha256
+
+  environment_variables = {
+    BASE_URL  = aws_apigatewayv2_stage.lambda.invoke_url
+    CLIENT_ID = var.slack_app_client_id
+  }
+
+  role_arn         = aws_iam_role.lambda_exec.arn
+  execution_arn    = aws_apigatewayv2_api.lambda.execution_arn
+  api_id           = aws_apigatewayv2_api.lambda.id
+}
+
+module "oauth_functions_callback" {
+  source           = "./modules/aws-lambda-function"
+  function_name    = "OAuthCallback"
+  function_handler = "callback"
+  function_method  = "GET"
+  function_path    = "/oauth-callback"
+
+  s3_bucket        = module.oauth_functions.archive_bucket
+  s3_key           = module.oauth_functions.archive_key
+  source_code_hash = module.oauth_functions.archive_base64sha256
+
+  environment_variables = {
+    BASE_URL      = aws_apigatewayv2_stage.lambda.invoke_url
+    CLIENT_ID     = var.slack_app_client_id
+    CLIENT_SECRET = var.slack_app_client_secret
+  }
+
+  role_arn         = aws_iam_role.lambda_exec.arn
+  execution_arn    = aws_apigatewayv2_api.lambda.execution_arn
+  api_id           = aws_apigatewayv2_api.lambda.id
 }
