@@ -1,3 +1,10 @@
+locals {
+  oauth_start_url    = format("%s/oauth-start", aws_apigatewayv2_stage.lambda.invoke_url)
+  oauth_callback_url = format("%s/oauth-callback", aws_apigatewayv2_stage.lambda.invoke_url)
+}
+
+# -------------------------------------------------------------------------------------------------
+
 provider "aws" {
   region     = var.aws_region
   access_key = var.aws_access_key
@@ -77,13 +84,6 @@ resource "aws_apigatewayv2_stage" "lambda" {
       }
     )
   }
-}
-
-# -------------------------------------------------------------------------------------------------
-
-locals {
-  oauth_start_url = format("%s/oauth-start", aws_apigatewayv2_stage.lambda.invoke_url)
-  oauth_callback_url = format("%s/oauth-callback", aws_apigatewayv2_stage.lambda.invoke_url)
 }
 
 # -------------------------------------------------------------------------------------------------

@@ -19,6 +19,7 @@ variable "aws_secret_key" {
 variable "aws_s3_functions_bucket_name" {
   description = "AWS S3 bucket name to store functions"
   type        = string
+  default     = "slack-auto-away-fns"
 }
 
 variable "slack_app_client_id" {
