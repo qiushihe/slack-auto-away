@@ -6,3 +6,6 @@ IAM Policies
 * AWSLambda_FullAccess
 * CloudWatchLogsFullAccess
 * IAMFullAccess
+
+Slack Apps
+* https://api.slack.com/apps

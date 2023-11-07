@@ -81,6 +81,13 @@ resource "aws_apigatewayv2_stage" "lambda" {
 
 # -------------------------------------------------------------------------------------------------
 
+locals {
+  oauth_start_url = format("%s/oauth-start", aws_apigatewayv2_stage.lambda.invoke_url)
+  oauth_callback_url = format("%s/oauth-callback", aws_apigatewayv2_stage.lambda.invoke_url)
+}
+
+# -------------------------------------------------------------------------------------------------
+
 module "dummy_functions" {
   source          = "./modules/aws-lambda-functions"
   bucket_id       = aws_s3_bucket.lambda_bucket.id
@@ -105,9 +112,9 @@ module "dummy_functions_hello" {
     CLIENT_ID = var.slack_app_client_id
   }
 
-  role_arn         = aws_iam_role.lambda_exec.arn
-  execution_arn    = aws_apigatewayv2_api.lambda.execution_arn
-  api_id           = aws_apigatewayv2_api.lambda.id
+  role_arn      = aws_iam_role.lambda_exec.arn
+  execution_arn = aws_apigatewayv2_api.lambda.execution_arn
+  api_id        = aws_apigatewayv2_api.lambda.id
 }
 
 module "dummy_functions_who" {
@@ -125,9 +132,9 @@ module "dummy_functions_who" {
     BASE_URL = aws_apigatewayv2_stage.lambda.invoke_url
   }
 
-  role_arn         = aws_iam_role.lambda_exec.arn
-  execution_arn    = aws_apigatewayv2_api.lambda.execution_arn
-  api_id           = aws_apigatewayv2_api.lambda.id
+  role_arn      = aws_iam_role.lambda_exec.arn
+  execution_arn = aws_apigatewayv2_api.lambda.execution_arn
+  api_id        = aws_apigatewayv2_api.lambda.id
 }
 
 module "oauth_functions" {
@@ -150,13 +157,13 @@ module "oauth_functions_start" {
   source_code_hash = module.oauth_functions.archive_base64sha256
 
   environment_variables = {
-    BASE_URL  = aws_apigatewayv2_stage.lambda.invoke_url
-    CLIENT_ID = var.slack_app_client_id
+    CLIENT_ID          = var.slack_app_client_id
+    OAUTH_CALLBACK_URL = local.oauth_callback_url
   }
 
-  role_arn         = aws_iam_role.lambda_exec.arn
-  execution_arn    = aws_apigatewayv2_api.lambda.execution_arn
-  api_id           = aws_apigatewayv2_api.lambda.id
+  role_arn      = aws_iam_role.lambda_exec.arn
+  execution_arn = aws_apigatewayv2_api.lambda.execution_arn
+  api_id        = aws_apigatewayv2_api.lambda.id
 }
 
 module "oauth_functions_callback" {
@@ -171,12 +178,12 @@ module "oauth_functions_callback" {
   source_code_hash = module.oauth_functions.archive_base64sha256
 
   environment_variables = {
-    BASE_URL      = aws_apigatewayv2_stage.lambda.invoke_url
-    CLIENT_ID     = var.slack_app_client_id
-    CLIENT_SECRET = var.slack_app_client_secret
+    CLIENT_ID          = var.slack_app_client_id
+    CLIENT_SECRET      = var.slack_app_client_secret
+    OAUTH_CALLBACK_URL = local.oauth_callback_url
   }
 
-  role_arn         = aws_iam_role.lambda_exec.arn
-  execution_arn    = aws_apigatewayv2_api.lambda.execution_arn
-  api_id           = aws_apigatewayv2_api.lambda.id
+  role_arn      = aws_iam_role.lambda_exec.arn
+  execution_arn = aws_apigatewayv2_api.lambda.execution_arn
+  api_id        = aws_apigatewayv2_api.lambda.id
 }
