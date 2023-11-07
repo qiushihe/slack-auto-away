@@ -1,0 +1,38 @@
+{
+  "include": [
+    "**/*.ts",
+
+    // Including this file makes the root of the output directory no longer "only contains other
+    // directories", and that would prevent `tsc` from flattening the `dist` directory down to the
+    // content of the `src` directory. This way, the structure of the output directory would always
+    // be consistent with the structure of the project root. That is, from the project root we can
+    // navigate to `src/some/things`, and we can equally navigate from the output directory to the
+    // same `src/some/things` path.
+    "tsconfig.json"
+  ],
+  "exclude": [".build", "script", "type", "test", "node_modules", "**/*.spec.ts"],
+  "compilerOptions": {
+    "allowSyntheticDefaultImports": true,
+    "baseUrl": ".",
+    "esModuleInterop": true,
+    "lib": ["esnext"],
+    "module": "esnext",
+    "moduleResolution": "node",
+    "noEmit": false,
+    "outDir": ".build",
+    "paths": {
+      "~src/*": ["src/*"],
+      "~test/*": ["test/*"],
+      "~type/*": ["type/*"]
+    },
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "strictNullChecks": true,
+    "target": "es5",
+    "typeRoots": ["type", "node_modules/@types"],
+    "types": ["node"]
+  },
+  "tsc-alias": {
+    "resolveFullPaths": true
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:prettier/recommended"
+  ],
+  "plugins": [
+    "@typescript-eslint",
+    "prettier",
+    "simple-import-sort"
+  ],
+  "rules": {
+    "no-constant-condition": "off",
+    "@typescript-eslint/no-empty-function": "off",
+    "@typescript-eslint/ban-ts-comment": "off",
+    "@typescript-eslint/no-explicit-any": "off"
+  },
+  "overrides": [
+    {
+      "files": ["*.ts"],
+      "rules": {
+        "simple-import-sort/imports": [
+          "error",
+          {
+            "groups": [
+              // Side effect imports
+              ["^\\u0000"],
+              // Absolute imports
+              ["^@?\\w"],
+              // Absolute project imports
+              ["^/\\w", "^~"],
+              // Relative imports
+              ["^\\."]
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

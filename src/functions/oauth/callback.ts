@@ -1,31 +1,31 @@
 // Set away
 // https://api.slack.com/methods/users.setPresence
 
-module.exports.handler = async (event) => {
-  console.log('Event: ', event);
+export const handler = async (event) => {
+  console.log("Event: ", event);
 
-  const clientId = process.env.CLIENT_ID;
-  const clientSecret = process.env.CLIENT_SECRET;
-  const oauthCallbackUrl = process.env.OAUTH_CALLBACK_URL
+  const clientId = process.env.CLIENT_ID as string;
+  const clientSecret = process.env.CLIENT_SECRET as string;
+  const oauthCallbackUrl = process.env.OAUTH_CALLBACK_URL as string;
 
-  let userId = null;
-  let userAccessToken = null;
-  let messages = [];
+  let userId: string | null = null;
+  let userAccessToken: string | null = null;
+  const messages: string[] = [];
 
-  let res = null;
+  let res: any = null;
   try {
     messages.push("Fetching user token ...");
-    res = await fetch('https://slack.com/api/oauth.v2.access', {
+    res = await fetch("https://slack.com/api/oauth.v2.access", {
       method: "POST",
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Type": "application/x-www-form-urlencoded"
       },
       body: new URLSearchParams({
         client_id: clientId,
         client_secret: clientSecret,
-        code: event.queryStringParameters['code'],
-        redirect_uri: oauthCallbackUrl,
-      }),
+        code: event.queryStringParameters["code"],
+        redirect_uri: oauthCallbackUrl
+      })
     });
     messages.push("Done fetching user token");
   } catch (err) {
@@ -33,7 +33,7 @@ module.exports.handler = async (event) => {
   }
 
   if (res) {
-    let data = null;
+    let data: any = null;
     try {
       messages.push("Reading response data ...");
       data = await res.json();
@@ -86,14 +86,14 @@ module.exports.handler = async (event) => {
   return {
     statusCode: 200,
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      code: event.queryStringParameters['code'],
-      state: event.queryStringParameters['state'],
+      code: event.queryStringParameters["code"],
+      state: event.queryStringParameters["state"],
       messages,
       userId,
       userAccessToken
-    }),
-  }
-}
+    })
+  };
+};

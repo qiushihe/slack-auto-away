@@ -13,7 +13,10 @@ override.tf.json
 .terraformrc
 terraform.rc
 
-crash.log
-
 .idea
 .archives
+.coverage
+.build
+
+node_modules
+crash.log

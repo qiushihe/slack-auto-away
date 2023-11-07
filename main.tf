@@ -91,7 +91,7 @@ resource "aws_apigatewayv2_stage" "lambda" {
 module "dummy_functions" {
   source          = "./modules/aws-lambda-functions"
   bucket_id       = aws_s3_bucket.lambda_bucket.id
-  source_dir      = "${abspath(path.module)}/src/functions/dummy"
+  source_dir      = "${abspath(path.module)}/.build/src/functions/dummy"
   output_dir      = "${abspath(path.module)}/.archives"
   output_filename = "dummy-functions.zip"
 }
@@ -140,7 +140,7 @@ module "dummy_functions_who" {
 module "oauth_functions" {
   source          = "./modules/aws-lambda-functions"
   bucket_id       = aws_s3_bucket.lambda_bucket.id
-  source_dir      = "${abspath(path.module)}/src/functions/oauth"
+  source_dir      = "${abspath(path.module)}/.build/src/functions/oauth"
   output_dir      = "${abspath(path.module)}/.archives"
   output_filename = "oauth-functions.zip"
 }
