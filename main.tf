@@ -3,6 +3,7 @@ locals {
   dummy_hello_url    = format("%s/dummy-hello", module.lambda_gateway.invocation_url)
   oauth_start_url    = format("%s/oauth-start", module.lambda_gateway.invocation_url)
   oauth_callback_url = format("%s/oauth-callback", module.lambda_gateway.invocation_url)
+  public_asset_urls = [for key in module.public_assets.asset_keys : "https://${module.assets_bucket.bucket_name}.s3.amazonaws.com/${key}"]
 }
 
 # -------------------------------------------------------------------------------------------------
@@ -21,6 +22,13 @@ module "lambda_bucket" {
   bucket_acl  = "private"
 }
 
+module "assets_bucket" {
+  source         = "./modules/aws-s3-bucket"
+  bucket_name    = var.aws_s3_assets_bucket_name
+  bucket_acl     = "public-read"
+  enable_website = true
+}
+
 module "data_bucket" {
   source      = "./modules/aws-s3-bucket"
   bucket_name = var.aws_s3_data_bucket_name
@@ -32,12 +40,30 @@ module "data_bucket" {
 module "lambda_role" {
   source       = "./modules/aws-lambda-role"
   package_name = local.package_name
-  bucket_arns  = [module.data_bucket.bucket_arn]
+  bucket_arns = [
+    module.assets_bucket.bucket_arn,
+    module.data_bucket.bucket_arn
+  ]
 }
 
 module "lambda_gateway" {
   source       = "./modules/aws-lambda-gateway"
   package_name = local.package_name
+}
+
+# -------------------------------------------------------------------------------------------------
+
+module "public_assets" {
+  source    = "./modules/aws-s3-assets"
+  bucket_id = module.assets_bucket.bucket_id
+  assets = [
+    {
+      source = "${abspath(path.module)}/src/asset/callback-result.html",
+      key    = "callback-result.html"
+      type   = "text/html"
+      public = true
+    }
+  ]
 }
 
 # -------------------------------------------------------------------------------------------------
@@ -109,10 +135,11 @@ module "oauth_functions_callback" {
   source_code_hash = module.oauth_functions.archive_base64sha256
 
   environment_variables = {
-    DATA_BUCKET_NAME   = var.aws_s3_data_bucket_name
+    DATA_BUCKET_NAME   = module.data_bucket.bucket_name
     CLIENT_ID          = var.slack_app_client_id
     CLIENT_SECRET      = var.slack_app_client_secret
     OAUTH_CALLBACK_URL = local.oauth_callback_url
+    PUBLIC_ASSET_URLS  = join(",", local.public_asset_urls)
   }
 
   role_arn      = module.lambda_role.iam_role_arn

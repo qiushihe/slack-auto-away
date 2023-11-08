@@ -1,6 +1,7 @@
 import { Handler } from "aws-lambda";
 
 import { processEnvGetString } from "~src/util/env.util";
+import { redirectResponse } from "~src/util/response.util";
 
 export const handler: Handler<never> = async (evt) => {
   console.log("[oauth/start] Event: ", evt);
@@ -14,10 +15,5 @@ export const handler: Handler<never> = async (evt) => {
   oauthStartUrl.searchParams.set("redirect_uri", oauthCallbackUrl);
   oauthStartUrl.searchParams.set("state", "dummy-state");
 
-  return {
-    statusCode: 302,
-    headers: {
-      Location: oauthStartUrl.toString()
-    }
-  };
+  return redirectResponse(oauthStartUrl.toString());
 };

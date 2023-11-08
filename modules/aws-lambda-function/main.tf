@@ -40,3 +40,26 @@ resource "aws_apigatewayv2_route" "function_route" {
   route_key = format("%s %s", var.function_method, var.function_path)
   target    = "integrations/${aws_apigatewayv2_integration.function_integration.id}"
 }
+
+#resource "aws_lambda_function_url" "function" {
+#  function_name      = aws_lambda_function.function.function_name
+#  authorization_type = "NONE"
+#}
+
+#resource "aws_apigatewayv2_integration_response" "function" {
+#  api_id                   = var.api_id
+#  integration_id           = aws_apigatewayv2_integration.function_integration.id
+#  integration_response_key = "/200/"
+#
+#  response_templates = {
+#    "application/json" = "$input.path('$')"
+#    "text/html"        = "$input.path('body')"
+#  }
+#}
+
+#resource "aws_apigatewayv2_integration" "function_integration" {
+#  api_id             = var.api_id
+#  integration_uri    = aws_lambda_function_url.function.function_url
+#  integration_type   = "HTTP_PROXY"
+#  integration_method = "POST"
+#}

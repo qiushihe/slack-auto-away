@@ -22,6 +22,12 @@ variable "aws_s3_functions_bucket_name" {
   default     = "slack-auto-away-fns"
 }
 
+variable "aws_s3_assets_bucket_name" {
+  description = "AWS S3 bucket name to store assets"
+  type        = string
+  default     = "slack-auto-away-assets"
+}
+
 variable "aws_s3_data_bucket_name" {
   description = "AWS S3 bucket name to store data"
   type        = string

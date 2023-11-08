@@ -5,3 +5,8 @@ variable "bucket_name" {
 variable "bucket_acl" {
   type = string
 }
+
+variable "enable_website" {
+  type    = bool
+  default = false
+}
