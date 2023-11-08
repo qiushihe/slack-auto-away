@@ -1,4 +1,5 @@
 locals {
+  dummy_hello_url    = format("%s/dummy-hello", aws_apigatewayv2_stage.lambda.invoke_url)
   oauth_start_url    = format("%s/oauth-start", aws_apigatewayv2_stage.lambda.invoke_url)
   oauth_callback_url = format("%s/oauth-callback", aws_apigatewayv2_stage.lambda.invoke_url)
 }
