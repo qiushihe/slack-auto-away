@@ -23,5 +23,11 @@ export default {
     }),
     cleanup({ comments: "none", sourcemap: false })
   ],
-  external: ["@aws-sdk/client-s3", "aws-lambda"]
+  external: [
+    // Lambda execution environment has AWS SDK preinstalled and available for import. So there is
+    // no need to bundle the AWS SDK with the rest of the code.
+    // Note: AWS SDK is the only NPM package made available this way. Other 3rd party NPM packages
+    // still need to be bundled.
+    "@aws-sdk/client-s3"
+  ]
 };

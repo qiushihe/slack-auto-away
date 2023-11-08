@@ -102,7 +102,12 @@ export const handler: Handler<OAuthCallbackEvent> = async (evt) => {
   }
 
   if (userId && userAccessToken) {
+    // Lambda execution environment has seeded environment variables for AWS region, access key
+    // and secret key, so there is no need to explicitly provide them as parameters to the
+    // `S3Client` constructor. The only requirement is the Lambda's IAM role has required
+    // permissions/policies attached, in order to perform the required operations.
     const s3Client = new S3Client();
+
     await s3Client.send(
       new PutObjectCommand({
         Bucket: dataBucketName,

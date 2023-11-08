@@ -1,8 +1,8 @@
 locals {
   package_name       = "slack-auto-away"
-  dummy_hello_url    = format("%s/dummy-hello", aws_apigatewayv2_stage.lambda.invoke_url)
-  oauth_start_url    = format("%s/oauth-start", aws_apigatewayv2_stage.lambda.invoke_url)
-  oauth_callback_url = format("%s/oauth-callback", aws_apigatewayv2_stage.lambda.invoke_url)
+  dummy_hello_url    = format("%s/dummy-hello", module.lambda_gateway.invocation_url)
+  oauth_start_url    = format("%s/oauth-start", module.lambda_gateway.invocation_url)
+  oauth_callback_url = format("%s/oauth-callback", module.lambda_gateway.invocation_url)
 }
 
 # -------------------------------------------------------------------------------------------------
@@ -29,81 +29,15 @@ module "data_bucket" {
 
 # -------------------------------------------------------------------------------------------------
 
-resource "aws_iam_role" "lambda" {
-  name = local.package_name
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
-      Sid    = ""
-      Principal = {
-        Service = "lambda.amazonaws.com"
-      }
-    }]
-  })
+module "lambda_role" {
+  source       = "./modules/aws-lambda-role"
+  package_name = local.package_name
+  bucket_arns  = [module.data_bucket.bucket_arn]
 }
 
-resource "aws_iam_role_policy_attachment" "lambda" {
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-  role       = aws_iam_role.lambda.name
-}
-
-resource "aws_iam_policy" "lambda" {
-  name        = local.package_name
-  description = "Policy to grant the Lambda IAM role"
-
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Action   = "s3:*",
-        Effect   = "Allow",
-        Resource = [format("%s/*", module.data_bucket.bucket_arn)],
-      },
-    ],
-  })
-}
-
-resource "aws_iam_policy_attachment" "lambda" {
-  name       = local.package_name
-  policy_arn = aws_iam_policy.lambda.arn
-  roles      = [aws_iam_role.lambda.name]
-}
-
-resource "aws_apigatewayv2_api" "lambda" {
-  name          = local.package_name
-  protocol_type = "HTTP"
-}
-
-resource "aws_apigatewayv2_stage" "lambda" {
-  name        = local.package_name
-  api_id      = aws_apigatewayv2_api.lambda.id
-  auto_deploy = true
-
-  access_log_settings {
-    destination_arn = aws_cloudwatch_log_group.lambda_gateway.arn
-
-    format = jsonencode({
-      requestId               = "$context.requestId"
-      sourceIp                = "$context.identity.sourceIp"
-      requestTime             = "$context.requestTime"
-      protocol                = "$context.protocol"
-      httpMethod              = "$context.httpMethod"
-      resourcePath            = "$context.resourcePath"
-      routeKey                = "$context.routeKey"
-      status                  = "$context.status"
-      responseLength          = "$context.responseLength"
-      integrationErrorMessage = "$context.integrationErrorMessage"
-      }
-    )
-  }
-}
-
-resource "aws_cloudwatch_log_group" "lambda_gateway" {
-  name              = "/aws/api_gw/${aws_apigatewayv2_api.lambda.name}"
-  retention_in_days = 30
+module "lambda_gateway" {
+  source       = "./modules/aws-lambda-gateway"
+  package_name = local.package_name
 }
 
 # -------------------------------------------------------------------------------------------------
@@ -129,9 +63,9 @@ module "dummy_functions_hello" {
 
   environment_variables = {}
 
-  role_arn      = aws_iam_role.lambda.arn
-  execution_arn = aws_apigatewayv2_api.lambda.execution_arn
-  api_id        = aws_apigatewayv2_api.lambda.id
+  role_arn      = module.lambda_role.iam_role_arn
+  execution_arn = module.lambda_gateway.gateway_execution_arn
+  api_id        = module.lambda_gateway.gateway_api_id
 }
 
 module "oauth_functions" {
@@ -158,9 +92,9 @@ module "oauth_functions_start" {
     OAUTH_CALLBACK_URL = local.oauth_callback_url
   }
 
-  role_arn      = aws_iam_role.lambda.arn
-  execution_arn = aws_apigatewayv2_api.lambda.execution_arn
-  api_id        = aws_apigatewayv2_api.lambda.id
+  role_arn      = module.lambda_role.iam_role_arn
+  execution_arn = module.lambda_gateway.gateway_execution_arn
+  api_id        = module.lambda_gateway.gateway_api_id
 }
 
 module "oauth_functions_callback" {
@@ -181,7 +115,7 @@ module "oauth_functions_callback" {
     OAUTH_CALLBACK_URL = local.oauth_callback_url
   }
 
-  role_arn      = aws_iam_role.lambda.arn
-  execution_arn = aws_apigatewayv2_api.lambda.execution_arn
-  api_id        = aws_apigatewayv2_api.lambda.id
+  role_arn      = module.lambda_role.iam_role_arn
+  execution_arn = module.lambda_gateway.gateway_execution_arn
+  api_id        = module.lambda_gateway.gateway_api_id
 }
