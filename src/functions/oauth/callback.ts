@@ -22,7 +22,8 @@ enum RESPONSE_CODE {
   DATA_ERROR = 2,
   USER_DATA_ERROR = 3,
   PERMISSION_ERROR = 4,
-  TOKEN_ERROR = 5
+  TOKEN_ERROR = 5,
+  S3_ERROR = 6
 }
 
 const redirectOrJsonResponder = (destinationUrl: string | null | undefined) => {
@@ -160,13 +161,20 @@ export const handler: Handler<OAuthCallbackEvent> = async (evt) => {
   // permissions/policies attached, in order to perform the required operations.
   const s3Client = new S3Client();
 
-  await s3Client.send(
-    new PutObjectCommand({
-      Bucket: dataBucketName,
-      Key: userAccessTokenS3StorageKey(userId),
-      Body: userAccessToken
-    })
-  );
+  try {
+    console.log("[oauth/callback] Storing user access token ...");
+    await s3Client.send(
+      new PutObjectCommand({
+        Bucket: dataBucketName,
+        Key: userAccessTokenS3StorageKey(userId),
+        Body: userAccessToken
+      })
+    );
+    console.log("[oauth/callback] Done storing user access token");
+  } catch (err) {
+    console.error(`[oauth/callback] Error storing user access token: ${err.message}`);
+    return response(RESPONSE_CODE.S3_ERROR);
+  }
 
   return response(RESPONSE_CODE.SUCCESS);
 };
