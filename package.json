@@ -1,9 +1,9 @@
 {
   "name": "slack-auto-away",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "version": "0.1.0",
   "type": "module",
+  "private": true,
+  "license": "UNLICENSED",
   "scripts": {
     "test": "npm-run-all test:tsc test:lint test:unit",
     "test:tsc": "tsc --noemit --skipLibCheck",
@@ -22,8 +22,6 @@
     "deploy:terraform:apply": "terraform apply",
     "deploy:terraform:apply:auto": "npm run deploy:terraform:apply -- -auto-approve"
   },
-  "author": "",
-  "license": "ISC",
   "devDependencies": {
     "@jest/globals": "^29.7.0",
     "@rollup/plugin-commonjs": "^25.0.7",
