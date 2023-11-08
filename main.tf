@@ -1,4 +1,5 @@
 locals {
+  package_name       = "slack-auto-away"
   dummy_hello_url    = format("%s/dummy-hello", aws_apigatewayv2_stage.lambda.invoke_url)
   oauth_start_url    = format("%s/oauth-start", aws_apigatewayv2_stage.lambda.invoke_url)
   oauth_callback_url = format("%s/oauth-callback", aws_apigatewayv2_stage.lambda.invoke_url)
@@ -28,8 +29,8 @@ module "data_bucket" {
 
 # -------------------------------------------------------------------------------------------------
 
-resource "aws_iam_role" "lambda_exec" {
-  name = "slack-auto-away-lambda-exec"
+resource "aws_iam_role" "lambda" {
+  name = local.package_name
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -44,28 +45,45 @@ resource "aws_iam_role" "lambda_exec" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "lambda_policy" {
+resource "aws_iam_role_policy_attachment" "lambda" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-  role       = aws_iam_role.lambda_exec.name
+  role       = aws_iam_role.lambda.name
+}
+
+resource "aws_iam_policy" "lambda" {
+  name        = local.package_name
+  description = "Policy to grant the Lambda IAM role"
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Action   = "s3:*",
+        Effect   = "Allow",
+        Resource = [format("%s/*", module.data_bucket.bucket_arn)],
+      },
+    ],
+  })
+}
+
+resource "aws_iam_policy_attachment" "lambda" {
+  name       = local.package_name
+  policy_arn = aws_iam_policy.lambda.arn
+  roles      = [aws_iam_role.lambda.name]
 }
 
 resource "aws_apigatewayv2_api" "lambda" {
-  name          = "slack-auto-away-gateway"
+  name          = local.package_name
   protocol_type = "HTTP"
 }
 
-resource "aws_cloudwatch_log_group" "api_gateway" {
-  name              = "/aws/api_gw/${aws_apigatewayv2_api.lambda.name}"
-  retention_in_days = 30
-}
-
 resource "aws_apigatewayv2_stage" "lambda" {
+  name        = local.package_name
   api_id      = aws_apigatewayv2_api.lambda.id
-  name        = "slack-auto-away-stage"
   auto_deploy = true
 
   access_log_settings {
-    destination_arn = aws_cloudwatch_log_group.api_gateway.arn
+    destination_arn = aws_cloudwatch_log_group.lambda_gateway.arn
 
     format = jsonencode({
       requestId               = "$context.requestId"
@@ -81,6 +99,11 @@ resource "aws_apigatewayv2_stage" "lambda" {
       }
     )
   }
+}
+
+resource "aws_cloudwatch_log_group" "lambda_gateway" {
+  name              = "/aws/api_gw/${aws_apigatewayv2_api.lambda.name}"
+  retention_in_days = 30
 }
 
 # -------------------------------------------------------------------------------------------------
@@ -106,7 +129,7 @@ module "dummy_functions_hello" {
 
   environment_variables = {}
 
-  role_arn      = aws_iam_role.lambda_exec.arn
+  role_arn      = aws_iam_role.lambda.arn
   execution_arn = aws_apigatewayv2_api.lambda.execution_arn
   api_id        = aws_apigatewayv2_api.lambda.id
 }
@@ -131,11 +154,11 @@ module "oauth_functions_start" {
   source_code_hash = module.oauth_functions.archive_base64sha256
 
   environment_variables = {
-    FN_CLIENT_ID          = var.slack_app_client_id
-    FN_OAUTH_CALLBACK_URL = local.oauth_callback_url
+    CLIENT_ID          = var.slack_app_client_id
+    OAUTH_CALLBACK_URL = local.oauth_callback_url
   }
 
-  role_arn      = aws_iam_role.lambda_exec.arn
+  role_arn      = aws_iam_role.lambda.arn
   execution_arn = aws_apigatewayv2_api.lambda.execution_arn
   api_id        = aws_apigatewayv2_api.lambda.id
 }
@@ -152,16 +175,13 @@ module "oauth_functions_callback" {
   source_code_hash = module.oauth_functions.archive_base64sha256
 
   environment_variables = {
-    FN_AWS_REGION         = var.aws_region
-    FN_AWS_ACCESS_KEY     = var.aws_access_key
-    FN_AWS_SECRET_KEY     = var.aws_secret_key
-    FN_DATA_BUCKET_NAME   = var.aws_s3_data_bucket_name
-    FN_CLIENT_ID          = var.slack_app_client_id
-    FN_CLIENT_SECRET      = var.slack_app_client_secret
-    FN_OAUTH_CALLBACK_URL = local.oauth_callback_url
+    DATA_BUCKET_NAME   = var.aws_s3_data_bucket_name
+    CLIENT_ID          = var.slack_app_client_id
+    CLIENT_SECRET      = var.slack_app_client_secret
+    OAUTH_CALLBACK_URL = local.oauth_callback_url
   }
 
-  role_arn      = aws_iam_role.lambda_exec.arn
+  role_arn      = aws_iam_role.lambda.arn
   execution_arn = aws_apigatewayv2_api.lambda.execution_arn
   api_id        = aws_apigatewayv2_api.lambda.id
 }

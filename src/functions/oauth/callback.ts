@@ -14,37 +14,19 @@ interface OAuthCallbackEvent {
   };
 }
 
-let s3Client: S3Client | null = null;
-const getS3Client = () => {
-  if (!s3Client) {
-    const region = processEnvGetString("FN_AWS_REGION");
-    const accessKey = processEnvGetString("FN_AWS_ACCESS_KEY");
-    const secretKey = processEnvGetString("FN_AWS_SECRET_KEY");
-
-    s3Client = new S3Client({
-      region,
-      credentials: {
-        accessKeyId: accessKey,
-        secretAccessKey: secretKey
-      }
-    });
-  }
-  return s3Client;
-};
-
 export const handler: Handler<OAuthCallbackEvent> = async (evt) => {
   console.log("[oauth/callback] Event: ", evt);
 
-  const dataBucketName = processEnvGetString("FN_DATA_BUCKET_NAME");
-  const clientId = processEnvGetString("FN_CLIENT_ID");
-  const clientSecret = processEnvGetString("FN_CLIENT_SECRET");
-  const oauthCallbackUrl = processEnvGetString("FN_OAUTH_CALLBACK_URL");
+  const dataBucketName = processEnvGetString("DATA_BUCKET_NAME");
+  const clientId = processEnvGetString("CLIENT_ID");
+  const clientSecret = processEnvGetString("CLIENT_SECRET");
+  const oauthCallbackUrl = processEnvGetString("OAUTH_CALLBACK_URL");
 
   let userId: string | null = null;
   let userAccessToken: string | null = null;
   const messages: string[] = [];
 
-  let res: any = null;
+  let res: Awaited<ReturnType<typeof fetch>> | null = null;
   try {
     messages.push("Fetching user token ...");
     res = await fetch("https://slack.com/api/oauth.v2.access", {
@@ -65,58 +47,63 @@ export const handler: Handler<OAuthCallbackEvent> = async (evt) => {
   }
 
   if (res) {
-    let data: any = null;
+    let data: Record<string, any> | null = null;
     try {
       messages.push("Reading response data ...");
-      data = await res.json();
+      data = (await res.json()) as any;
       messages.push("Done reading response data");
     } catch (err) {
       messages.push(`Error reading response data: ${err.message}`);
     }
     messages.push(`Response data: ${JSON.stringify(data)}`);
 
-    if (data.ok) {
-      if (data.authed_user) {
-        if (data.authed_user.id) {
-          const idValue = `${data.authed_user.id}`.trim();
-          if (idValue.length > 0) {
-            userId = idValue;
+    if (data) {
+      if (data.ok) {
+        if (data.authed_user) {
+          if (data.authed_user.id) {
+            const idValue = `${data.authed_user.id}`.trim();
+            if (idValue.length > 0) {
+              userId = idValue;
 
-            if (data.authed_user.scope) {
-              const scopes = `${data.authed_user.scope}`.trim().split(",");
-              if (scopes.includes("users:write")) {
-                if (data.authed_user.access_token) {
-                  const accessTokenValue = `${data.authed_user.access_token}`.trim();
-                  if (accessTokenValue.length > 0) {
-                    userAccessToken = accessTokenValue;
+              if (data.authed_user.scope) {
+                const scopes = `${data.authed_user.scope}`.trim().split(",");
+                if (scopes.includes("users:write")) {
+                  if (data.authed_user.access_token) {
+                    const accessTokenValue = `${data.authed_user.access_token}`.trim();
+                    if (accessTokenValue.length > 0) {
+                      userAccessToken = accessTokenValue;
+                    } else {
+                      messages.push("Response data missing authed_user access_token value");
+                    }
                   } else {
-                    messages.push("Response data missing authed_user access_token value");
+                    messages.push("Response data missing authed_user access_token");
                   }
                 } else {
-                  messages.push("Response data missing authed_user access_token");
+                  messages.push(`Response data missing authed_user "users:write" scope`);
                 }
               } else {
-                messages.push(`Response data missing authed_user "users:write" scope`);
+                messages.push("Response data missing authed_user scope");
               }
             } else {
-              messages.push("Response data missing authed_user scope");
+              messages.push("Response data missing authed_user id value");
             }
           } else {
-            messages.push("Response data missing authed_user id value");
+            messages.push("Response data missing authed_user id");
           }
         } else {
-          messages.push("Response data missing authed_user id");
+          messages.push("Response data missing authed_user");
         }
       } else {
-        messages.push("Response data missing authed_user");
+        messages.push("Response data not ok");
       }
     } else {
-      messages.push("Response data not ok");
+      messages.push(`Response data missing`);
     }
   }
 
   if (userId && userAccessToken) {
-    await getS3Client().send(
+    const s3Client = new S3Client();
+    await s3Client.send(
       new PutObjectCommand({
         Bucket: dataBucketName,
         Key: userAccessTokenS3StorageKey(userId),
