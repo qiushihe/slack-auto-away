@@ -4,6 +4,7 @@ resource "aws_lambda_function" "function" {
   role    = var.role_arn
   runtime = "nodejs18.x"
   handler = format("%s.handler", var.function_handler)
+  timeout = 60
 
   s3_bucket        = var.s3_bucket
   s3_key           = var.s3_key

@@ -5,20 +5,22 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "format": "terraform fmt -recursive",
     "test": "npm-run-all test:tsc test:lint test:unit",
     "test:tsc": "tsc --noemit --skipLibCheck",
     "test:lint": "eslint --ext .ts ./src ./test ./type",
-    "test:lint:fix": "npm run test:lint -- --fix",
+    "test:lint:fix": "npm-run-all test:lint:fix:eslint test:lint:fix:terraform",
+    "test:lint:fix:eslint": "npm run test:lint -- --fix",
+    "test:lint:fix:terraform": "terraform fmt -recursive",
     "test:unit": "npm-run-all test:unit:clean test:unit:jest",
     "test:unit:clean": "shx rm -rf .coverage",
     "test:unit:jest": "jest --config jest.config.json --runInBand --logHeapUsage --coverage",
     "build": "npm-run-all build:clean build:rollup",
     "build:clean": "shx rm -rf .build",
     "build:rollup": "ts-node --esm ./script/rollup-build.ts ./src/functions",
-    "deploy": "npm-run-all build deploy:terraform:auto",
-    "deploy:terraform": "terraform apply",
-    "deploy:terraform:auto": "npm run deploy:terraform -- -auto-approve"
+    "deploy": "npm-run-all build deploy:terraform:init deploy:terraform:apply:auto",
+    "deploy:terraform:init": "terraform init",
+    "deploy:terraform:apply": "terraform apply",
+    "deploy:terraform:apply:auto": "npm run deploy:terraform:apply -- -auto-approve"
   },
   "author": "",
   "license": "ISC",
@@ -28,6 +30,7 @@
     "@rollup/plugin-json": "^6.0.1",
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@rollup/plugin-typescript": "^11.1.5",
+    "@types/aws-lambda": "^8.10.126",
     "@types/node": "^20.8.10",
     "@typescript-eslint/eslint-plugin": "^6.10.0",
     "@typescript-eslint/parser": "^6.10.0",
@@ -44,5 +47,8 @@
     "ts-jest": "^29.1.1",
     "ts-node": "^10.9.1",
     "typescript": "^5.2.2"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.445.0"
   }
 }

@@ -7,7 +7,7 @@ import cleanup from "rollup-plugin-cleanup";
 export default {
   plugins: [
     nodeResolve({
-      exportConditions: ["node"], // add node option here,
+      exportConditions: ["node"],
       preferBuiltins: true
     }),
     commonjs(),
@@ -22,5 +22,6 @@ export default {
       }
     }),
     cleanup({ comments: "none", sourcemap: false })
-  ]
+  ],
+  external: ["@aws-sdk/client-s3", "aws-lambda"]
 };

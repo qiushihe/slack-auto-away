@@ -1,16 +1,11 @@
-export const handler = async (event) => {
-  console.log("Event: ", event);
+import { Handler } from "aws-lambda";
 
-  const baseUrl = process.env.BASE_URL;
-  const clientId = process.env.CLIENT_ID;
+export const handler: Handler<never> = async (evt) => {
+  console.log("[dummy/hello] Event: ", evt);
 
   return {
     statusCode: 200,
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      message: `Hello Dummy! clientId: ${clientId}; baseUrl: ${baseUrl}`
-    })
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: "It Worked!" })
   };
 };

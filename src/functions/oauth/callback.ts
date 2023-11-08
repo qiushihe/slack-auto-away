@@ -1,12 +1,44 @@
+import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { Handler } from "aws-lambda";
+
+import { userAccessTokenS3StorageKey } from "~src/constant/user-access-token.constant";
+import { processEnvGetString } from "~src/util/env.util";
+
 // Set away
 // https://api.slack.com/methods/users.setPresence
 
-export const handler = async (event) => {
-  console.log("Event: ", event);
+interface OAuthCallbackEvent {
+  queryStringParameters: {
+    code: string;
+    state?: string;
+  };
+}
 
-  const clientId = process.env.CLIENT_ID as string;
-  const clientSecret = process.env.CLIENT_SECRET as string;
-  const oauthCallbackUrl = process.env.OAUTH_CALLBACK_URL as string;
+let s3Client: S3Client | null = null;
+const getS3Client = () => {
+  if (!s3Client) {
+    const region = processEnvGetString("FN_AWS_REGION");
+    const accessKey = processEnvGetString("FN_AWS_ACCESS_KEY");
+    const secretKey = processEnvGetString("FN_AWS_SECRET_KEY");
+
+    s3Client = new S3Client({
+      region,
+      credentials: {
+        accessKeyId: accessKey,
+        secretAccessKey: secretKey
+      }
+    });
+  }
+  return s3Client;
+};
+
+export const handler: Handler<OAuthCallbackEvent> = async (evt) => {
+  console.log("[oauth/callback] Event: ", evt);
+
+  const dataBucketName = processEnvGetString("FN_DATA_BUCKET_NAME");
+  const clientId = processEnvGetString("FN_CLIENT_ID");
+  const clientSecret = processEnvGetString("FN_CLIENT_SECRET");
+  const oauthCallbackUrl = processEnvGetString("FN_OAUTH_CALLBACK_URL");
 
   let userId: string | null = null;
   let userAccessToken: string | null = null;
@@ -23,7 +55,7 @@ export const handler = async (event) => {
       body: new URLSearchParams({
         client_id: clientId,
         client_secret: clientSecret,
-        code: event.queryStringParameters["code"],
+        code: evt.queryStringParameters.code,
         redirect_uri: oauthCallbackUrl
       })
     });
@@ -83,14 +115,24 @@ export const handler = async (event) => {
     }
   }
 
+  if (userId && userAccessToken) {
+    await getS3Client().send(
+      new PutObjectCommand({
+        Bucket: dataBucketName,
+        Key: userAccessTokenS3StorageKey(userId),
+        Body: userAccessToken
+      })
+    );
+  }
+
   return {
     statusCode: 200,
     headers: {
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      code: event.queryStringParameters["code"],
-      state: event.queryStringParameters["state"],
+      code: evt.queryStringParameters.code,
+      state: evt.queryStringParameters.state,
       messages,
       userId,
       userAccessToken
