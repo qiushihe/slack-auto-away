@@ -1,9 +1,10 @@
 locals {
-  package_name       = "slack-auto-away"
-  dummy_hello_url    = format("%s/dummy-hello", module.lambda_gateway.invocation_url)
-  oauth_start_url    = format("%s/oauth-start", module.lambda_gateway.invocation_url)
-  oauth_callback_url = format("%s/oauth-callback", module.lambda_gateway.invocation_url)
-  public_asset_urls  = [for key in module.public_assets.asset_keys : "https://${module.assets_bucket.bucket_name}.s3.amazonaws.com/${key}"]
+  package_name              = "slack-auto-away"
+  dummy_hello_url           = format("%s/dummy-hello", module.lambda_gateway.invocation_url)
+  oauth_start_url           = format("%s/oauth-start", module.lambda_gateway.invocation_url)
+  oauth_callback_url        = format("%s/oauth-callback", module.lambda_gateway.invocation_url)
+  slash_command_default_url = format("%s/slash-command-default", module.lambda_gateway.invocation_url)
+  public_asset_urls         = [for key in module.public_assets.asset_keys : "https://${module.assets_bucket.bucket_name}.s3.amazonaws.com/${key}"]
 }
 
 # -------------------------------------------------------------------------------------------------
@@ -142,6 +143,32 @@ module "oauth_functions_callback" {
     OAUTH_CALLBACK_URL = local.oauth_callback_url
     PUBLIC_ASSET_URLS  = join(",", local.public_asset_urls)
   }
+
+  role_arn      = module.lambda_role.iam_role_arn
+  execution_arn = module.lambda_gateway.gateway_execution_arn
+  api_id        = module.lambda_gateway.gateway_api_id
+}
+
+module "slash_command_functions" {
+  source          = "./modules/aws-lambda-functions"
+  bucket_id       = module.lambda_bucket.bucket_id
+  source_dir      = "${abspath(path.module)}/.build/src/functions/slash-command"
+  output_dir      = "${abspath(path.module)}/.archives"
+  output_filename = "slash-command-functions.zip"
+}
+
+module "slash_command_functions_default" {
+  source           = "./modules/aws-lambda-function"
+  function_name    = "SlashCommandDefault"
+  function_handler = "default"
+  function_method  = "POST"
+  function_path    = "/slash-command-default"
+
+  s3_bucket        = module.slash_command_functions.archive_bucket
+  s3_key           = module.slash_command_functions.archive_key
+  source_code_hash = module.slash_command_functions.archive_base64sha256
+
+  environment_variables = {}
 
   role_arn      = module.lambda_role.iam_role_arn
   execution_arn = module.lambda_gateway.gateway_execution_arn
