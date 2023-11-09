@@ -8,4 +8,3 @@ export const redirectResponse = (destinationUrl: string, code?: number) => ({
   statusCode: code ?? 302,
   headers: { Location: destinationUrl }
 });
-

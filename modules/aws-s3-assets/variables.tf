@@ -5,3 +5,8 @@ variable "bucket_id" {
 variable "assets" {
   type = list(map(string))
 }
+
+variable "is_public" {
+  type    = bool
+  default = false
+}

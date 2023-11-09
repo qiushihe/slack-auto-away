@@ -3,7 +3,7 @@ locals {
   dummy_hello_url    = format("%s/dummy-hello", module.lambda_gateway.invocation_url)
   oauth_start_url    = format("%s/oauth-start", module.lambda_gateway.invocation_url)
   oauth_callback_url = format("%s/oauth-callback", module.lambda_gateway.invocation_url)
-  public_asset_urls = [for key in module.public_assets.asset_keys : "https://${module.assets_bucket.bucket_name}.s3.amazonaws.com/${key}"]
+  public_asset_urls  = [for key in module.public_assets.asset_keys : "https://${module.assets_bucket.bucket_name}.s3.amazonaws.com/${key}"]
 }
 
 # -------------------------------------------------------------------------------------------------
@@ -56,12 +56,13 @@ module "lambda_gateway" {
 module "public_assets" {
   source    = "./modules/aws-s3-assets"
   bucket_id = module.assets_bucket.bucket_id
+  is_public = true
+
   assets = [
     {
       source = "${abspath(path.module)}/src/asset/callback-result.html",
       key    = "callback-result.html"
       type   = "text/html"
-      public = true
     }
   ]
 }

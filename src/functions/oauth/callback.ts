@@ -3,6 +3,7 @@ import { Handler } from "aws-lambda";
 
 import { userAccessTokenS3StorageKey } from "~src/constant/user-access-token.constant";
 import { processEnvGetString } from "~src/util/env.util";
+import { promisedFn } from "~src/util/promise.util";
 import { escapeRegExp } from "~src/util/regexp.util";
 import { jsonResponse, redirectResponse } from "~src/util/response.util";
 
@@ -72,38 +73,44 @@ export const handler: Handler<OAuthCallbackEvent> = async (evt) => {
   let userId: string | null = null;
   let userAccessToken: string | null = null;
 
-  let res: Awaited<ReturnType<typeof fetch>> | null = null;
-  try {
-    console.log("[oauth/callback] Fetching user token ...");
-    res = await fetch("https://slack.com/api/oauth.v2.access", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded"
-      },
-      body: new URLSearchParams({
-        client_id: clientId,
-        client_secret: clientSecret,
-        code: evt.queryStringParameters.code,
-        redirect_uri: oauthCallbackUrl
-      })
-    });
+  console.log("[oauth/callback] Fetching user token ...");
+  const [fetchTokenErr, fetchTokenRes] = await promisedFn(
+    (code: string) =>
+      fetch("https://slack.com/api/oauth.v2.access", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: new URLSearchParams({
+          client_id: clientId,
+          client_secret: clientSecret,
+          code,
+          redirect_uri: oauthCallbackUrl
+        })
+      }),
+    evt.queryStringParameters.code
+  );
+  if (fetchTokenErr) {
+    console.error(`[oauth/callback] Error fetching user token: ${fetchTokenErr.message}`);
+    return response(RESPONSE_CODE.GENERIC_ERROR);
+  } else {
     console.log("[oauth/callback] Done fetching user token");
-  } catch (err) {
-    console.error(`[oauth/callback] Error fetching user token: ${err.message}`);
   }
 
-  if (!res) {
+  if (!fetchTokenRes) {
     console.error("[oauth/callback] Response missing");
     return response(RESPONSE_CODE.GENERIC_ERROR);
   }
 
-  let data: Record<string, any> | null = null;
-  try {
-    console.log("[oauth/callback] Reading response data ...");
-    data = (await res.json()) as any;
+  console.log("[oauth/callback] Reading response data ...");
+  const [dataErr, data] = await promisedFn(
+    () => fetchTokenRes.json() as Promise<Record<string, any>>
+  );
+  if (dataErr) {
+    console.error(`[oauth/callback] Error reading response data: ${dataErr.message}`);
+    return response(RESPONSE_CODE.GENERIC_ERROR);
+  } else {
     console.log("[oauth/callback] Done reading response data");
-  } catch (err) {
-    console.error(`[oauth/callback] Error reading response data: ${err.message}`);
   }
   console.log(`[oauth/callback] Response data: ${JSON.stringify(data)}`);
 
@@ -161,19 +168,24 @@ export const handler: Handler<OAuthCallbackEvent> = async (evt) => {
   // permissions/policies attached, in order to perform the required operations.
   const s3Client = new S3Client();
 
-  try {
-    console.log("[oauth/callback] Storing user access token ...");
-    await s3Client.send(
-      new PutObjectCommand({
-        Bucket: dataBucketName,
-        Key: userAccessTokenS3StorageKey(userId),
-        Body: userAccessToken
-      })
-    );
-    console.log("[oauth/callback] Done storing user access token");
-  } catch (err) {
-    console.error(`[oauth/callback] Error storing user access token: ${err.message}`);
+  console.log("[oauth/callback] Storing user access token ...");
+  const [putObjectErr] = await promisedFn(
+    (id: string, token: string) =>
+      s3Client.send(
+        new PutObjectCommand({
+          Bucket: dataBucketName,
+          Key: userAccessTokenS3StorageKey(id),
+          Body: token
+        })
+      ),
+    userId,
+    userAccessToken
+  );
+  if (putObjectErr) {
+    console.error(`[oauth/callback] Error storing user access token: ${putObjectErr.message}`);
     return response(RESPONSE_CODE.S3_ERROR);
+  } else {
+    console.log("[oauth/callback] Done storing user access token");
   }
 
   return response(RESPONSE_CODE.SUCCESS);
