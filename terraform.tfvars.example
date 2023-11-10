@@ -1,5 +1,4 @@
 aws_access_key               = "--AWS-ACCESS-KEY--"
 aws_secret_key               = "--AWS-SECRET-KEY--"
-aws_s3_functions_bucket_name = "slack-auto-away-fns"
 slack_app_client_id          = "--SLACK-APP-CLIENT-ID--"
 slack_app_client_secret      = "--SLACK-APP-CLIENT-SECRET--"

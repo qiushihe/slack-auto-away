@@ -1,7 +1,10 @@
+import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { Handler } from "aws-lambda";
 import querystring from "querystring";
 
+import { SendResponseJob } from "~src/functions/job/process";
 import { processEnvGetString } from "~src/util/env.util";
+import { promisedFn } from "~src/util/promise.util";
 import { jsonResponse } from "~src/util/response.util";
 
 interface SlashCommandDefaultEvent {
@@ -93,12 +96,14 @@ export const handler: Handler<SlashCommandDefaultEvent> = async (evt) => {
   console.log("[slash-command/default] Event: ", evt);
 
   const oauthStartUrl = processEnvGetString("OAUTH_START_URL");
+  const jobsQueueUrl = processEnvGetString("JOBS_QUEUE_URL");
 
   const commandPayload = extractEventBody(evt) as CommandPayload;
 
   const commandName = `${commandPayload.command || ""}`.trim();
   const commandText = `${commandPayload.text || ""}`.trim();
   const commandWords = commandText.split(/\s+/).map((word) => `${word || ""}`.trim().toLowerCase());
+  const commandResponseUrl = `${commandPayload.response_url || ""}`.trim();
 
   const commandApiAppId = `${commandPayload.api_app_id || ""}`.trim();
   const commandTeamId = `${commandPayload.team_id || ""}`.trim();
@@ -127,9 +132,35 @@ export const handler: Handler<SlashCommandDefaultEvent> = async (evt) => {
         "",
         [
           `Once a schedule is set, *Auto Away* will automatically update your \`away\` status`,
-          "based on that schedule using your current timezone (wherever you may be)."
+          "based on that schedule using the timezone value in your Slack profile."
         ].join(" ")
       ].join("\n")
+    });
+  } else if (commandWords[0] === "status") {
+    console.log(`[slash-command/default] Enqueuing send-response job ...`);
+    const [queueErr] = await promisedFn(() =>
+      new SQSClient().send(
+        new SendMessageCommand({
+          QueueUrl: jobsQueueUrl,
+          MessageBody: JSON.stringify({
+            type: "send-response",
+            responseUrl: commandResponseUrl,
+            responseMessage: "Status response from job"
+          } as SendResponseJob)
+        })
+      )
+    );
+    if (queueErr) {
+      console.error(
+        `[slash-command/default] Error enqueuing send-response job: ${queueErr.message}`
+      );
+    } else {
+      console.log(`[slash-command/default] Done enqueuing send-response job`);
+    }
+
+    return jsonResponse({
+      response_type: "ephemeral",
+      text: "Status response from command"
     });
   } else if (commandWords[0] === "auth") {
     return jsonResponse({

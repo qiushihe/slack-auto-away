@@ -45,6 +45,7 @@ module "lambda_role" {
     module.assets_bucket.bucket_arn,
     module.data_bucket.bucket_arn
   ]
+  queue_arns = [aws_sqs_queue.jobs.arn]
 }
 
 module "lambda_gateway" {
@@ -170,9 +171,48 @@ module "slash_command_functions_default" {
 
   environment_variables = {
     OAUTH_START_URL = local.oauth_start_url
+    JOBS_QUEUE_URL  = aws_sqs_queue.jobs.url
   }
 
   role_arn      = module.lambda_role.iam_role_arn
   execution_arn = module.lambda_gateway.gateway_execution_arn
   api_id        = module.lambda_gateway.gateway_api_id
+}
+
+module "job_functions" {
+  source          = "./modules/aws-lambda-functions"
+  bucket_id       = module.lambda_bucket.bucket_id
+  source_dir      = "${abspath(path.module)}/.build/src/functions/job"
+  output_dir      = "${abspath(path.module)}/.archives"
+  output_filename = "job-functions.zip"
+}
+
+module "job_functions_process" {
+  source           = "./modules/aws-lambda-function"
+  function_name    = "JobProcess"
+  function_handler = "process"
+
+  s3_bucket        = module.job_functions.archive_bucket
+  s3_key           = module.job_functions.archive_key
+  source_code_hash = module.job_functions.archive_base64sha256
+
+  environment_variables = {}
+
+  role_arn      = module.lambda_role.iam_role_arn
+  execution_arn = module.lambda_gateway.gateway_execution_arn
+  api_id        = module.lambda_gateway.gateway_api_id
+}
+
+# -------------------------------------------------------------------------------------------------
+
+resource "aws_sqs_queue" "jobs" {
+  name = local.package_name
+
+  # This has to equal to or greater than Lambda function's execution timeout
+  visibility_timeout_seconds = 60
+}
+
+resource "aws_lambda_event_source_mapping" "jobs" {
+  event_source_arn = aws_sqs_queue.jobs.arn
+  function_name    = module.job_functions_process.function_name
 }

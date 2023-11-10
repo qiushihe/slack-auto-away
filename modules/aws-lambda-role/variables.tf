@@ -5,3 +5,7 @@ variable "package_name" {
 variable "bucket_arns" {
   type = list(string)
 }
+
+variable "queue_arns" {
+  type = list(string)
+}

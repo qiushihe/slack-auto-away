@@ -1,5 +1,6 @@
 locals {
   policy_bucket_arns = [for item in var.bucket_arns : "${item}/*"]
+  policy_queues_arns = [for item in var.queue_arns : "${item}"]
 }
 
 resource "aws_iam_role" "role" {
@@ -10,7 +11,6 @@ resource "aws_iam_role" "role" {
     Statement = [{
       Action = "sts:AssumeRole"
       Effect = "Allow"
-      Sid    = ""
       Principal = {
         Service = "lambda.amazonaws.com"
       }
@@ -34,6 +34,11 @@ resource "aws_iam_policy" "policy" {
         Action   = "s3:*",
         Effect   = "Allow",
         Resource = local.policy_bucket_arns,
+      },
+      {
+        Action   = "sqs:*",
+        Effect   = "Allow",
+        Resource = local.policy_queues_arns,
       },
     ],
   })

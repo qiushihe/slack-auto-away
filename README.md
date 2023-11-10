@@ -3,6 +3,7 @@
 IAM Policies
 * AmazonAPIGatewayAdministrator
 * AmazonS3FullAccess
+* AmazonSQSFullAccess
 * AWSLambda_FullAccess
 * CloudWatchLogsFullAccess
 * IAMFullAccess

@@ -7,11 +7,13 @@ variable "function_handler" {
 }
 
 variable "function_method" {
-  type = string
+  type    = string
+  default = ""
 }
 
 variable "function_path" {
-  type = string
+  type    = string
+  default = ""
 }
 
 variable "role_arn" {

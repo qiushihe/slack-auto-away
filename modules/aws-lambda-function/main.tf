@@ -29,6 +29,7 @@ resource "aws_lambda_permission" "function_permission" {
 }
 
 resource "aws_apigatewayv2_integration" "function_integration" {
+  count              = (length(var.function_method) > 0 && length(var.function_path) > 0) ? 1 : 0
   api_id             = var.api_id
   integration_uri    = aws_lambda_function.function.invoke_arn
   integration_type   = "AWS_PROXY"
@@ -36,9 +37,10 @@ resource "aws_apigatewayv2_integration" "function_integration" {
 }
 
 resource "aws_apigatewayv2_route" "function_route" {
+  count     = (length(var.function_method) > 0 && length(var.function_path) > 0) ? 1 : 0
   api_id    = var.api_id
   route_key = format("%s %s", var.function_method, var.function_path)
-  target    = "integrations/${aws_apigatewayv2_integration.function_integration.id}"
+  target    = "integrations/${aws_apigatewayv2_integration.function_integration[0].id}"
 }
 
 #resource "aws_lambda_function_url" "function" {

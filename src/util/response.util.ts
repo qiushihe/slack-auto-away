@@ -1,3 +1,5 @@
+export const emptyResponse = (code?: number) => ({ statusCode: code ?? 200 });
+
 export const jsonResponse = (body: Record<string, any>, code?: number) => ({
   statusCode: code ?? 200,
   headers: { "Content-Type": "application/json" },

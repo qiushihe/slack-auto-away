@@ -28,6 +28,7 @@ export default {
     // no need to bundle the AWS SDK with the rest of the code.
     // Note: AWS SDK is the only NPM package made available this way. Other 3rd party NPM packages
     // still need to be bundled.
-    "@aws-sdk/client-s3"
+    "@aws-sdk/client-s3",
+    "@aws-sdk/client-sqs"
   ]
 };
