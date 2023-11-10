@@ -168,7 +168,9 @@ module "slash_command_functions_default" {
   s3_key           = module.slash_command_functions.archive_key
   source_code_hash = module.slash_command_functions.archive_base64sha256
 
-  environment_variables = {}
+  environment_variables = {
+    OAUTH_START_URL = local.oauth_start_url
+  }
 
   role_arn      = module.lambda_role.iam_role_arn
   execution_arn = module.lambda_gateway.gateway_execution_arn
