@@ -2,10 +2,11 @@ import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { Handler } from "aws-lambda";
 import querystring from "querystring";
 
-import { SendResponseJob } from "~src/functions/job/process";
+import { JobName } from "~src/constant/job.constant";
+import { CheckStatusJob, SendResponseJob } from "~src/job/job.type";
 import { processEnvGetString } from "~src/util/env.util";
 import { promisedFn } from "~src/util/promise.util";
-import { jsonResponse } from "~src/util/response.util";
+import { emptyResponse, jsonResponse } from "~src/util/response.util";
 
 interface SlashCommandDefaultEvent {
   headers: Record<string, string>;
@@ -76,22 +77,6 @@ const extractEventBody = (evt: SlashCommandDefaultEvent): Record<string, any> =>
   }
 };
 
-// {
-//   "token":"i1cmTol7kPj7iCxTLXdb4jXE",
-//   "team_id":"T024BF2PG",
-//   "team_domain":"metalab",
-//   "channel_id":"D19M4LXLK",
-//   "channel_name":"directmessage",
-//   "user_id":"U024Q4059",
-//   "user_name":"qiushi_he",
-//   "command":"/auto-away",
-//   "text":"test this &.  that",
-//   "api_app_id":"A064QPEBHQ9",
-//   "is_enterprise_install":"false",
-//   "response_url":"https://hooks.slack.com/commands/T024BF2PG/6172557443587/VScgqbG4RlF0soui5tWkPxQ4",
-//   "trigger_id":"6175109868564.2147512798.80e6659f21bfa7a02f6d38722cce738e"
-// }
-
 export const handler: Handler<SlashCommandDefaultEvent> = async (evt) => {
   console.log("[slash-command/default] Event: ", evt);
 
@@ -137,30 +122,30 @@ export const handler: Handler<SlashCommandDefaultEvent> = async (evt) => {
       ].join("\n")
     });
   } else if (commandWords[0] === "status") {
-    console.log(`[slash-command/default] Enqueuing send-response job ...`);
+    console.log(`[slash-command/default] Enqueuing ${JobName.CHECK_STATUS} job ...`);
     const [queueErr] = await promisedFn(() =>
       new SQSClient().send(
         new SendMessageCommand({
           QueueUrl: jobsQueueUrl,
           MessageBody: JSON.stringify({
-            type: "send-response",
+            type: JobName.CHECK_STATUS,
             responseUrl: commandResponseUrl,
-            responseMessage: "Status response from job"
-          } as SendResponseJob)
+            userId: commandUserId
+          } as CheckStatusJob)
         })
       )
     );
     if (queueErr) {
       console.error(
-        `[slash-command/default] Error enqueuing send-response job: ${queueErr.message}`
+        `[slash-command/default] Error enqueuing ${JobName.CHECK_STATUS} job: ${queueErr.message}`
       );
     } else {
-      console.log(`[slash-command/default] Done enqueuing send-response job`);
+      console.log(`[slash-command/default] Done enqueuing ${JobName.CHECK_STATUS} job`);
     }
 
     return jsonResponse({
       response_type: "ephemeral",
-      text: "Status response from command"
+      text: "Checking status ..."
     });
   } else if (commandWords[0] === "auth") {
     return jsonResponse({
@@ -183,16 +168,34 @@ export const handler: Handler<SlashCommandDefaultEvent> = async (evt) => {
       ].join("\n")
     });
   } else if (commandWords[0] === "riven") {
-    return jsonResponse({
-      response_type: "ephemeral",
-      text: [
-        "For generations, the Dreaming City housed one of the Awoken's most closely guarded secrets.",
-        "She is known as Riven — Riven of a Thousand Voices. The last known Ahamkara.",
-        "She has been Taken. And her death is your calling."
-      ]
-        .join(" ")
-        .toUpperCase()
-    });
+    console.log(`[slash-command/default] Enqueuing ${JobName.SEND_RESPONSE} job ...`);
+    const [queueErr] = await promisedFn(() =>
+      new SQSClient().send(
+        new SendMessageCommand({
+          QueueUrl: jobsQueueUrl,
+          MessageBody: JSON.stringify({
+            type: JobName.SEND_RESPONSE,
+            responseUrl: commandResponseUrl,
+            responseMessage: [
+              "For generations, the Dreaming City housed one of the Awoken's most closely guarded secrets.",
+              "She is known as Riven — Riven of a Thousand Voices. The last known Ahamkara.",
+              "She has been Taken. And her death is your calling."
+            ]
+              .join(" ")
+              .toUpperCase()
+          } as SendResponseJob)
+        })
+      )
+    );
+    if (queueErr) {
+      console.error(
+        `[slash-command/default] Error enqueuing ${JobName.SEND_RESPONSE} job: ${queueErr.message}`
+      );
+    } else {
+      console.log(`[slash-command/default] Done enqueuing ${JobName.SEND_RESPONSE} job`);
+    }
+
+    return emptyResponse();
   } else {
     return jsonResponse({
       response_type: "ephemeral",

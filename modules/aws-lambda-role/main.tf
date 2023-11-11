@@ -1,6 +1,7 @@
 locals {
-  policy_bucket_arns = [for item in var.bucket_arns : "${item}/*"]
-  policy_queues_arns = [for item in var.queue_arns : "${item}"]
+  policy_bucket_arns   = [for item in var.bucket_arns : "${item}/*"]
+  policy_queue_arns    = [for item in var.queue_arns : "${item}"]
+  policy_function_arns = [for item in var.function_arns : "${item}"]
 }
 
 resource "aws_iam_role" "role" {
@@ -38,7 +39,12 @@ resource "aws_iam_policy" "policy" {
       {
         Action   = "sqs:*",
         Effect   = "Allow",
-        Resource = local.policy_queues_arns,
+        Resource = local.policy_queue_arns,
+      },
+      {
+        Action   = "lambda:*",
+        Effect   = "Allow",
+        Resource = local.policy_function_arns,
       },
     ],
   })

@@ -10,7 +10,7 @@ IAM Policies
 
 Slack Apps
 * https://api.slack.com/apps
-* Bot Token Scopes: `users:read`
+* Bot Token Scopes: `commands`, `users:read`
 * User Token Scopes: `users:write`
 * Slack commands:
   * Command: `/auto-away`

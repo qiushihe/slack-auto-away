@@ -9,3 +9,7 @@ variable "bucket_arns" {
 variable "queue_arns" {
   type = list(string)
 }
+
+variable "function_arns" {
+  type = list(string)
+}

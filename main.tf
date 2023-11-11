@@ -46,6 +46,10 @@ module "lambda_role" {
     module.data_bucket.bucket_arn
   ]
   queue_arns = [aws_sqs_queue.jobs.arn]
+  function_arns = [
+    module.job_functions_send_response.function_arn,
+    module.job_functions_check_status.function_arn
+  ]
 }
 
 module "lambda_gateway" {
@@ -196,7 +200,44 @@ module "job_functions_process" {
   s3_key           = module.job_functions.archive_key
   source_code_hash = module.job_functions.archive_base64sha256
 
+  environment_variables = {
+    FUNCTION_ARN_SEND_RESPONSE = module.job_functions_send_response.function_arn
+    FUNCTION_ARN_CHECK_STATUS  = module.job_functions_check_status.function_arn
+  }
+
+  role_arn      = module.lambda_role.iam_role_arn
+  execution_arn = module.lambda_gateway.gateway_execution_arn
+  api_id        = module.lambda_gateway.gateway_api_id
+}
+
+module "job_functions_send_response" {
+  source           = "./modules/aws-lambda-function"
+  function_name    = "JobSendResponse"
+  function_handler = "send-response"
+
+  s3_bucket        = module.job_functions.archive_bucket
+  s3_key           = module.job_functions.archive_key
+  source_code_hash = module.job_functions.archive_base64sha256
+
   environment_variables = {}
+
+  role_arn      = module.lambda_role.iam_role_arn
+  execution_arn = module.lambda_gateway.gateway_execution_arn
+  api_id        = module.lambda_gateway.gateway_api_id
+}
+
+module "job_functions_check_status" {
+  source           = "./modules/aws-lambda-function"
+  function_name    = "JobCheckStatus"
+  function_handler = "check-status"
+
+  s3_bucket        = module.job_functions.archive_bucket
+  s3_key           = module.job_functions.archive_key
+  source_code_hash = module.job_functions.archive_base64sha256
+
+  environment_variables = {
+    DATA_BUCKET_NAME = module.data_bucket.bucket_name
+  }
 
   role_arn      = module.lambda_role.iam_role_arn
   execution_arn = module.lambda_gateway.gateway_execution_arn

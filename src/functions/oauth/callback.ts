@@ -1,7 +1,7 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { Handler } from "aws-lambda";
 
-import { userAccessTokenS3StorageKey } from "~src/constant/user-access-token.constant";
+import { userAccessTokenS3StorageKey } from "~src/constant/s3.constant";
 import { processEnvGetString } from "~src/util/env.util";
 import { promisedFn } from "~src/util/promise.util";
 import { escapeRegExp } from "~src/util/regexp.util";

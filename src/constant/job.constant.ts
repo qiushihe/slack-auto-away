@@ -1,0 +1,4 @@
+export enum JobName {
+  SEND_RESPONSE = "SEND_RESPONSE",
+  CHECK_STATUS = "CHECK_STATUS"
+}
