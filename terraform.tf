@@ -1,4 +1,12 @@
 terraform {
+  cloud {
+    organization = "slack-auto-away"
+
+    workspaces {
+      name = "slack-auto-away"
+    }
+  }
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"

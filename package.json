@@ -5,7 +5,6 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "tfstate:backup": "ts-node --esm ./script/backup-terraform-state.ts",
     "test": "npm-run-all test:tsc test:lint test:unit",
     "test:tsc": "tsc --noemit --skipLibCheck",
     "test:lint": "eslint --ext .ts ./src ./test ./type",
@@ -18,7 +17,7 @@
     "build": "npm-run-all build:clean build:rollup",
     "build:clean": "shx rm -rf .build",
     "build:rollup": "ts-node --esm ./script/rollup-build.ts ./src/functions",
-    "deploy": "npm-run-all build deploy:terraform:init tfstate:backup deploy:terraform:apply:auto",
+    "deploy": "npm-run-all build deploy:terraform:init deploy:terraform:apply:auto",
     "deploy:terraform:init": "terraform init",
     "deploy:terraform:apply": "terraform apply",
     "deploy:terraform:apply:auto": "npm run deploy:terraform:apply -- -auto-approve"
