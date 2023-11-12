@@ -15,3 +15,11 @@ export interface CheckStatusJob extends Job {
   responseUrl: string;
   userId: string;
 }
+
+export interface StoreScheduleJob extends Job {
+  type: JobName.STORE_SCHEDULE;
+  responseUrl: string;
+  userId: string;
+  fromHour24: number;
+  toHour24: number;
+}

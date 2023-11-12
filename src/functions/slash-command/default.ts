@@ -3,7 +3,7 @@ import { Handler } from "aws-lambda";
 import querystring from "querystring";
 
 import { JobName } from "~src/constant/job.constant";
-import { CheckStatusJob, SendResponseJob } from "~src/job/job.type";
+import { CheckStatusJob, SendResponseJob, StoreScheduleJob } from "~src/job/job.type";
 import { processEnvGetString } from "~src/util/env.util";
 import { promisedFn } from "~src/util/promise.util";
 import { emptyResponse, jsonResponse } from "~src/util/response.util";
@@ -30,6 +30,25 @@ type CommandPayload = Record<
   | "trigger_id",
   any
 >;
+
+const SCHEDULE_STRING_REGEXP_12H = new RegExp(
+  "^from\\s+(([1-9]|1[0-2])[ap]m)\\s+to\\s+(([1-9]|1[0-2])[ap]m)$",
+  "i"
+);
+
+const SCHEDULE_STRING_REGEXP_24H = new RegExp(
+  "^from\\s+([1-9]|1[0-9]|2[0-4])\\s+to\\s+([1-9]|1[0-9]|2[0-4])$",
+  "i"
+);
+
+const stringifyNormalizedTime = (hour24: number): [string, string] => {
+  const hour12 = hour24 > 12 ? hour24 - 12 : hour24;
+  const suffix12 = hour24 > 12 ? "pm" : "am";
+  return [
+    `${hour24.toString().padStart(2, "0")}:00`,
+    `${hour12.toString().padStart(2, "0")}:00${suffix12}`
+  ];
+};
 
 const extractEventBody = (evt: SlashCommandDefaultEvent): Record<string, any> => {
   const contentType = evt.headers["Content-Type"];
@@ -155,6 +174,76 @@ export const handler: Handler<SlashCommandDefaultEvent> = async (evt) => {
         ` 👉 ${oauthStartUrl}`
       ].join("\n")
     });
+  } else if (commandWords[0] === "from") {
+    const matches12h = commandText.match(SCHEDULE_STRING_REGEXP_12H);
+    const matches24h = commandText.match(SCHEDULE_STRING_REGEXP_24H);
+
+    let fromHour24: number | null = null;
+    let toHour24: number | null = null;
+
+    if (matches12h) {
+      const fromInputTimeStr = `${matches12h[1] || ""}`.trim();
+      const toInputTimeStr = `${matches12h[3] || ""}`.trim();
+
+      fromHour24 = parseInt(fromInputTimeStr, 10);
+      if (fromInputTimeStr.match(/pm$/i)) {
+        fromHour24 = fromHour24 + 12;
+      }
+
+      toHour24 = parseInt(toInputTimeStr, 10);
+      if (toInputTimeStr.match(/pm$/i)) {
+        toHour24 = fromHour24 + 12;
+      }
+    } else if (matches24h) {
+      const fromInputTimeStr = `${matches24h[1] || ""}`.trim();
+      const toInputTimeStr = `${matches24h[2] || ""}`.trim();
+
+      fromHour24 = parseInt(fromInputTimeStr, 10);
+      toHour24 = parseInt(toInputTimeStr, 10);
+    }
+
+    if (fromHour24 !== null && toHour24 !== null) {
+      const [fromTime24Str, fromTime12Str] = stringifyNormalizedTime(fromHour24);
+      const [toTime24Str, toTime12Str] = stringifyNormalizedTime(toHour24);
+
+      console.log(`[slash-command/default] Enqueuing ${JobName.STORE_SCHEDULE} job ...`);
+      const [queueErr] = await promisedFn(() =>
+        new SQSClient().send(
+          new SendMessageCommand({
+            QueueUrl: jobsQueueUrl,
+            MessageBody: JSON.stringify({
+              type: JobName.STORE_SCHEDULE,
+              responseUrl: commandResponseUrl,
+              userId: commandUserId,
+              fromHour24,
+              toHour24
+            } as StoreScheduleJob)
+          })
+        )
+      );
+      if (queueErr) {
+        console.error(
+          `[slash-command/default] Error enqueuing ${JobName.STORE_SCHEDULE} job: ${queueErr.message}`
+        );
+      } else {
+        console.log(`[slash-command/default] Done enqueuing ${JobName.STORE_SCHEDULE} job`);
+      }
+
+      return jsonResponse({
+        response_type: "ephemeral",
+        text: [
+          "Received schedule:",
+          ` • Set status to \`away\` at ${fromTime12Str} / ${fromTime24Str}`,
+          ` • Clear \`away\` status at ${toTime12Str} / ${toTime24Str}`,
+          "Storing schedule ..."
+        ].join("\n")
+      });
+    } else {
+      return jsonResponse({
+        response_type: "ephemeral",
+        text: "Invalid input"
+      });
+    }
   } else if (commandWords[0] === "debug") {
     return jsonResponse({
       response_type: "ephemeral",

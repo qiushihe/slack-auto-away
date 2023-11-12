@@ -16,12 +16,15 @@ type JobProcessEvent = {
 };
 
 export const handler: Handler<JobProcessEvent> = async (evt) => {
-  console.log("[job/process] Event: ", evt);
+  console.log("[job/dispatch] Event: ", evt);
 
   const functionArnSendResponse = processEnvGetString("FUNCTION_ARN_SEND_RESPONSE");
   const functionArnCheckStatus = processEnvGetString("FUNCTION_ARN_CHECK_STATUS");
+  const functionArnStoreSchedule = processEnvGetString("FUNCTION_ARN_STORE_SCHEDULE");
+  const functionArnClearSchedule = processEnvGetString("FUNCTION_ARN_CLEAR_SCHEDULE");
+  const functionArnClearAuth = processEnvGetString("FUNCTION_ARN_CLEAR_AUTH");
 
-  console.log(`[job/process] Dispatching jobs ...`);
+  console.log(`[job/dispatch] Dispatching jobs ...`);
   const dispatchResults = await Promise.all(
     evt.Records.map((record) => {
       const job = JSON.parse(record.body) as Job;
@@ -31,6 +34,12 @@ export const handler: Handler<JobProcessEvent> = async (evt) => {
         functionArn = functionArnSendResponse;
       } else if (job.type === JobName.CHECK_STATUS) {
         functionArn = functionArnCheckStatus;
+      } else if (job.type === JobName.STORE_SCHEDULE) {
+        functionArn = functionArnStoreSchedule;
+      } else if (job.type === JobName.CLEAR_SCHEDULE) {
+        functionArn = functionArnClearSchedule;
+      } else if (job.type === JobName.CLEAR_AUTH) {
+        functionArn = functionArnClearAuth;
       }
 
       if (functionArn) {
@@ -49,22 +58,19 @@ export const handler: Handler<JobProcessEvent> = async (evt) => {
           functionArn
         );
       } else {
-        return promisedFn(() =>
-          Promise.resolve<[Error, null] | [null, never]>([
-            new Error(`Unsupported job: ${job.type}`),
-            null
-          ])
-        );
+        return promisedFn(async () => {
+          throw new Error(`Unsupported job: ${job.type}`);
+        });
       }
     })
   );
-  console.log(`[job/process] Done dispatching jobs`);
+  console.log(`[job/dispatch] Done dispatching jobs`);
 
   dispatchResults
     .map(([err]) => err)
     .forEach((err) => {
       if (err) {
-        console.error(`[job/process] Error dispatching job: ${err.message}`);
+        console.error(`[job/dispatch] Error dispatching job: ${err.message}`);
       }
     });
 
