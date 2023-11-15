@@ -10,7 +10,7 @@
     // same `src/some/things` path.
     "tsconfig.json"
   ],
-  "exclude": [".build", "script", "type", "test", "node_modules", "**/*.spec.ts"],
+  "exclude": [".build", "script", "test", "node_modules", "**/*.spec.ts"],
   "compilerOptions": {
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
@@ -22,14 +22,12 @@
     "outDir": ".build",
     "paths": {
       "~src/*": ["src/*"],
-      "~test/*": ["test/*"],
-      "~type/*": ["type/*"]
+      "~test/*": ["test/*"]
     },
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "strictNullChecks": true,
     "target": "es5",
-    "typeRoots": ["type", "node_modules/@types"],
     "types": ["node"]
   },
   "tsc-alias": {

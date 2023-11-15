@@ -3,10 +3,17 @@ import { Handler } from "aws-lambda";
 import querystring from "querystring";
 
 import { JobName } from "~src/constant/job.constant";
-import { CheckStatusJob, SendResponseJob, StoreScheduleJob } from "~src/job/job.type";
+import {
+  CheckStatusJob,
+  ClearAuthJob,
+  ClearScheduleJob,
+  SendResponseJob,
+  StoreScheduleJob
+} from "~src/job/job.type";
 import { processEnvGetString } from "~src/util/env.util";
 import { promisedFn } from "~src/util/promise.util";
 import { emptyResponse, jsonResponse } from "~src/util/response.util";
+import { stringifyNormalizedTime } from "~src/util/time.util";
 
 interface SlashCommandDefaultEvent {
   headers: Record<string, string>;
@@ -40,15 +47,6 @@ const SCHEDULE_STRING_REGEXP_24H = new RegExp(
   "^from\\s+([1-9]|1[0-9]|2[0-4])\\s+to\\s+([1-9]|1[0-9]|2[0-4])$",
   "i"
 );
-
-const stringifyNormalizedTime = (hour24: number): [string, string] => {
-  const hour12 = hour24 > 12 ? hour24 - 12 : hour24;
-  const suffix12 = hour24 >= 12 ? "pm" : "am";
-  return [
-    `${hour24.toString().padStart(2, "0")}:00`,
-    `${hour12.toString().padStart(2, "0")}:00${suffix12}`
-  ];
-};
 
 const extractEventBody = (evt: SlashCommandDefaultEvent): Record<string, any> => {
   const contentType = evt.headers["Content-Type"];
@@ -192,7 +190,7 @@ export const handler: Handler<SlashCommandDefaultEvent> = async (evt) => {
 
       toHour24 = parseInt(toInputTimeStr, 10);
       if (toInputTimeStr.match(/pm$/i)) {
-        toHour24 = fromHour24 + 12;
+        toHour24 = toHour24 + 12;
       }
     } else if (matches24h) {
       const fromInputTimeStr = `${matches24h[1] || ""}`.trim();
@@ -244,6 +242,79 @@ export const handler: Handler<SlashCommandDefaultEvent> = async (evt) => {
         text: "Invalid input"
       });
     }
+  } else if (commandWords[0] === "off") {
+    console.log(`[slash-command/default] Enqueuing ${JobName.CLEAR_SCHEDULE} job ...`);
+    const [queueErr] = await promisedFn(() =>
+      new SQSClient().send(
+        new SendMessageCommand({
+          QueueUrl: jobsQueueUrl,
+          MessageBody: JSON.stringify({
+            type: JobName.CLEAR_SCHEDULE,
+            responseUrl: commandResponseUrl,
+            userId: commandUserId
+          } as ClearScheduleJob)
+        })
+      )
+    );
+    if (queueErr) {
+      console.error(
+        `[slash-command/default] Error enqueuing ${JobName.CLEAR_SCHEDULE} job: ${queueErr.message}`
+      );
+    } else {
+      console.log(`[slash-command/default] Done enqueuing ${JobName.CLEAR_SCHEDULE} job`);
+    }
+
+    return jsonResponse({
+      response_type: "ephemeral",
+      text: "Clearing schedule ..."
+    });
+  } else if (commandWords[0] === "logout") {
+    console.log(`[slash-command/default] Enqueuing ${JobName.CLEAR_AUTH} job ...`);
+    const [queueClearAuthErr] = await promisedFn(() =>
+      new SQSClient().send(
+        new SendMessageCommand({
+          QueueUrl: jobsQueueUrl,
+          MessageBody: JSON.stringify({
+            type: JobName.CLEAR_AUTH,
+            responseUrl: commandResponseUrl,
+            userId: commandUserId
+          } as ClearAuthJob)
+        })
+      )
+    );
+    if (queueClearAuthErr) {
+      console.error(
+        `[slash-command/default] Error enqueuing ${JobName.CLEAR_AUTH} job: ${queueClearAuthErr.message}`
+      );
+    } else {
+      console.log(`[slash-command/default] Done enqueuing ${JobName.CLEAR_AUTH} job`);
+    }
+
+    console.log(`[slash-command/default] Enqueuing ${JobName.CLEAR_SCHEDULE} job ...`);
+    const [queueClearScheduleErr] = await promisedFn(() =>
+      new SQSClient().send(
+        new SendMessageCommand({
+          QueueUrl: jobsQueueUrl,
+          MessageBody: JSON.stringify({
+            type: JobName.CLEAR_SCHEDULE,
+            responseUrl: commandResponseUrl,
+            userId: commandUserId
+          } as ClearScheduleJob)
+        })
+      )
+    );
+    if (queueClearScheduleErr) {
+      console.error(
+        `[slash-command/default] Error enqueuing ${JobName.CLEAR_SCHEDULE} job: ${queueClearScheduleErr.message}`
+      );
+    } else {
+      console.log(`[slash-command/default] Done enqueuing ${JobName.CLEAR_SCHEDULE} job`);
+    }
+
+    return jsonResponse({
+      response_type: "ephemeral",
+      text: "Clearing auth and schedule ..."
+    });
   } else if (commandWords[0] === "debug") {
     return jsonResponse({
       response_type: "ephemeral",

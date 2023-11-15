@@ -23,3 +23,15 @@ export interface StoreScheduleJob extends Job {
   fromHour24: number;
   toHour24: number;
 }
+
+export interface ClearScheduleJob extends Job {
+  type: JobName.CLEAR_SCHEDULE;
+  responseUrl: string;
+  userId: string;
+}
+
+export interface ClearAuthJob extends Job {
+  type: JobName.CLEAR_AUTH;
+  responseUrl: string;
+  userId: string;
+}

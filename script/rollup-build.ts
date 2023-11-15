@@ -20,7 +20,7 @@ const promisedChild = {
         if (code === 0) {
           resolve(outputs.join(""));
         } else {
-          reject(new Error(`Child process exited with non-zero code: ${code}`));
+          reject(new Error(`Promised child process exited with non-zero code: ${code}`));
         }
       });
     });
@@ -60,6 +60,7 @@ const main = async (args: string[]) => {
       promisedChild.spawn(
         "rollup",
         [
+          "--failAfterWarnings",
           "--config",
           "./rollup-functions.config.js",
           "--input",
@@ -96,4 +97,9 @@ const main = async (args: string[]) => {
   );
 };
 
-main(process.argv).catch(console.error);
+const logErrorThenRethrow = (err: Error) => {
+  console.error(err);
+  throw err;
+};
+
+main(process.argv).catch(logErrorThenRethrow);

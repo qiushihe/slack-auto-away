@@ -7,7 +7,7 @@
   "scripts": {
     "test": "npm-run-all test:tsc test:lint test:unit",
     "test:tsc": "tsc --noemit --skipLibCheck",
-    "test:lint": "eslint --ext .ts ./src ./test ./type",
+    "test:lint": "eslint --ext .ts ./src ./test",
     "test:lint:fix": "npm-run-all test:lint:fix:eslint test:lint:fix:terraform",
     "test:lint:fix:eslint": "npm run test:lint -- --fix",
     "test:lint:fix:terraform": "terraform fmt -recursive",
