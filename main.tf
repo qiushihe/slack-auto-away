@@ -304,6 +304,30 @@ module "job_functions_clear_auth" {
   api_id        = module.lambda_gateway.gateway_api_id
 }
 
+module "schedule_functions" {
+  source          = "./modules/aws-lambda-functions"
+  bucket_id       = module.lambda_bucket.bucket_id
+  source_dir      = "${abspath(path.module)}/.build/src/functions/schedule"
+  output_dir      = "${abspath(path.module)}/.archives"
+  output_filename = "schedule-functions.zip"
+}
+
+module "schedule_functions_apply" {
+  source           = "./modules/aws-lambda-function"
+  function_name    = "ScheduleApply"
+  function_handler = "apply"
+
+  s3_bucket        = module.schedule_functions.archive_bucket
+  s3_key           = module.schedule_functions.archive_key
+  source_code_hash = module.schedule_functions.archive_base64sha256
+
+  environment_variables = {}
+
+  role_arn      = module.lambda_role.iam_role_arn
+  execution_arn = module.lambda_gateway.gateway_execution_arn
+  api_id        = module.lambda_gateway.gateway_api_id
+}
+
 # -------------------------------------------------------------------------------------------------
 
 resource "aws_sqs_queue" "jobs" {
@@ -317,4 +341,24 @@ resource "aws_lambda_event_source_mapping" "jobs" {
   depends_on       = [module.lambda_role.iam_policy_arn]
   event_source_arn = aws_sqs_queue.jobs.arn
   function_name    = module.job_functions_dispatch.function_name
+}
+
+# -------------------------------------------------------------------------------------------------
+
+resource "aws_lambda_permission" "schedule_event_lambda_permission" {
+  statement_id  = "AllowExecutionFromCloudWatch"
+  action        = "lambda:InvokeFunction"
+  principal     = "events.amazonaws.com"
+  function_name = module.schedule_functions_apply.function_name
+}
+
+resource "aws_cloudwatch_event_rule" "schedule_event_rule" {
+  name                = "schedule_event_rule"
+  schedule_expression = "cron(0/15 * * * ? *)"
+}
+
+resource "aws_cloudwatch_event_target" "schedule_event_lambda_target" {
+  target_id = "schedule_event_lambda_target"
+  rule      = aws_cloudwatch_event_rule.schedule_event_rule.name
+  arn       = module.schedule_functions_apply.function_arn
 }
