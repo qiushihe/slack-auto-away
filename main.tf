@@ -179,6 +179,7 @@ module "slash_command_functions_default" {
   environment_variables = {
     OAUTH_START_URL = local.oauth_start_url
     JOBS_QUEUE_URL  = aws_sqs_queue.jobs.url
+    SIGNING_SECRET  = var.slack_app_signing_secret
   }
 
   role_arn      = module.lambda_role.iam_role_arn

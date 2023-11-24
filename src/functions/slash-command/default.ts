@@ -1,5 +1,6 @@
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { Handler } from "aws-lambda";
+import crypto from "crypto";
 import querystring from "querystring";
 
 import { JobName } from "~src/constant/job.constant";
@@ -48,18 +49,60 @@ const SCHEDULE_STRING_REGEXP_24H = new RegExp(
   "i"
 );
 
-const extractEventBody = (evt: SlashCommandDefaultEvent): Record<string, any> => {
+const verifyJsonEncodedEventSignature = (
+  UNUSED_version: string,
+  UNUSED_secret: string,
+  UNUSED_body: string,
+  UNUSED_timestamp: number,
+  UNUSED_signature: string
+) => {
+  console.warn(
+    `[slash-command/default/verify-json-encoded-event-signature] Verification for JSON encoded event body is not supported.`
+  );
+};
+
+const verifyFormUrlEncodedEventSignature = (
+  version: string,
+  secret: string,
+  body: string,
+  timestamp: number,
+  signature: string
+) => {
+  const hmac = crypto.createHmac("sha256", secret);
+  hmac.update(`${version}:${timestamp}:${body}`);
+
+  if (`${version}=${hmac.digest("hex")}` !== signature) {
+    throw new Error(`Invalid request signature`);
+  }
+};
+
+const extractEventBody = (
+  evt: SlashCommandDefaultEvent,
+  signingVersion: string,
+  signingSecret: string
+): Record<string, any> => {
   const contentType = evt.headers["Content-Type"];
+  const requestTimestamp = parseInt(evt.headers["X-Slack-Request-Timestamp"], 10);
+  const signature = evt.headers["X-Slack-Signature"];
+
   if (contentType === "application/json") {
     if (typeof evt.body === "string") {
-      const jsonEncodedBody = evt.isBase64Encoded
+      const rawBody = evt.isBase64Encoded
         ? Buffer.from(evt.body as string, "base64").toString("utf-8")
         : (evt.body as string);
-      console.log(`[slash-command/default] Got JSON encoded command body: ${jsonEncodedBody}`);
+      console.log(`[slash-command/default] Got JSON encoded command body: ${rawBody}`);
+
+      verifyJsonEncodedEventSignature(
+        signingVersion,
+        signingSecret,
+        rawBody,
+        requestTimestamp,
+        signature
+      );
 
       try {
         console.log("[slash-command/default] Parsing JSON encoded command body ...");
-        const parsedBody = JSON.parse(jsonEncodedBody) as Record<string, any>;
+        const parsedBody = JSON.parse(rawBody) as Record<string, any>;
         console.log("[slash-command/default] Done parsing JSON encoded command body");
         return parsedBody;
       } catch (err) {
@@ -72,14 +115,22 @@ const extractEventBody = (evt: SlashCommandDefaultEvent): Record<string, any> =>
       return evt.body as Record<string, any>;
     }
   } else if (contentType === "application/x-www-form-urlencoded") {
-    const formUrlEncodedBody = evt.isBase64Encoded
+    const rawBody = evt.isBase64Encoded
       ? Buffer.from(evt.body as string, "base64").toString("utf-8")
       : (evt.body as string);
-    console.log(`[slash-command/default] Got form URL encoded command body: ${formUrlEncodedBody}`);
+    console.log(`[slash-command/default] Got form URL encoded command body: ${rawBody}`);
+
+    verifyFormUrlEncodedEventSignature(
+      signingVersion,
+      signingSecret,
+      rawBody,
+      requestTimestamp,
+      signature
+    );
 
     try {
       console.log("[slash-command/default] Parsing form URL encoded command body ...");
-      const parsedBody = querystring.parse(formUrlEncodedBody);
+      const parsedBody = querystring.parse(rawBody);
       console.log("[slash-command/default] Done parsing form URL encoded command body");
       return parsedBody;
     } catch (err) {
@@ -99,8 +150,9 @@ export const handler: Handler<SlashCommandDefaultEvent> = async (evt) => {
 
   const oauthStartUrl = processEnvGetString("OAUTH_START_URL");
   const jobsQueueUrl = processEnvGetString("JOBS_QUEUE_URL");
+  const signingSecret = processEnvGetString("SIGNING_SECRET");
 
-  const commandPayload = extractEventBody(evt) as CommandPayload;
+  const commandPayload = extractEventBody(evt, "v0", signingSecret) as CommandPayload;
 
   const commandName = `${commandPayload.command || ""}`.trim();
   const commandText = `${commandPayload.text || ""}`.trim();

@@ -44,3 +44,9 @@ variable "slack_app_client_secret" {
   type        = string
   sensitive   = true
 }
+
+variable "slack_app_signing_secret" {
+  description = "Slack App's Signing Secret"
+  type        = string
+  sensitive   = true
+}

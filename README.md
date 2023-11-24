@@ -2,6 +2,7 @@
 
 IAM Policies
 * AmazonAPIGatewayAdministrator
+* AmazonEventBridgeFullAccess
 * AmazonS3FullAccess
 * AmazonSQSFullAccess
 * AWSLambda_FullAccess
