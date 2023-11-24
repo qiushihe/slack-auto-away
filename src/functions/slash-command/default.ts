@@ -1,7 +1,5 @@
 import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { Handler } from "aws-lambda";
-import crypto from "crypto";
-import querystring from "querystring";
 
 import { JobName } from "~src/constant/job.constant";
 import {
@@ -13,14 +11,11 @@ import {
 } from "~src/job/job.type";
 import { processEnvGetString } from "~src/util/env.util";
 import { promisedFn } from "~src/util/promise.util";
+import { extractEventBody, IVerifiableEvent } from "~src/util/request.util";
 import { emptyResponse, jsonResponse } from "~src/util/response.util";
 import { stringifyNormalizedTime } from "~src/util/time.util";
 
-interface SlashCommandDefaultEvent {
-  headers: Record<string, string>;
-  body: unknown;
-  isBase64Encoded: boolean;
-}
+interface SlashCommandDefaultEvent extends IVerifiableEvent {}
 
 type CommandPayload = Record<
   | "token"
@@ -49,102 +44,6 @@ const SCHEDULE_STRING_REGEXP_24H = new RegExp(
   "i"
 );
 
-const verifyJsonEncodedEventSignature = (
-  UNUSED_version: string,
-  UNUSED_secret: string,
-  UNUSED_body: string,
-  UNUSED_timestamp: number,
-  UNUSED_signature: string
-) => {
-  console.warn(
-    `[slash-command/default/verify-json-encoded-event-signature] Verification for JSON encoded event body is not supported.`
-  );
-};
-
-const verifyFormUrlEncodedEventSignature = (
-  version: string,
-  secret: string,
-  body: string,
-  timestamp: number,
-  signature: string
-) => {
-  const hmac = crypto.createHmac("sha256", secret);
-  hmac.update(`${version}:${timestamp}:${body}`);
-
-  if (`${version}=${hmac.digest("hex")}` !== signature) {
-    throw new Error(`Invalid request signature`);
-  }
-};
-
-const extractEventBody = (
-  evt: SlashCommandDefaultEvent,
-  signingVersion: string,
-  signingSecret: string
-): Record<string, any> => {
-  const contentType = evt.headers["Content-Type"];
-  const requestTimestamp = parseInt(evt.headers["X-Slack-Request-Timestamp"], 10);
-  const signature = evt.headers["X-Slack-Signature"];
-
-  if (contentType === "application/json") {
-    if (typeof evt.body === "string") {
-      const rawBody = evt.isBase64Encoded
-        ? Buffer.from(evt.body as string, "base64").toString("utf-8")
-        : (evt.body as string);
-      console.log(`[slash-command/default] Got JSON encoded command body: ${rawBody}`);
-
-      verifyJsonEncodedEventSignature(
-        signingVersion,
-        signingSecret,
-        rawBody,
-        requestTimestamp,
-        signature
-      );
-
-      try {
-        console.log("[slash-command/default] Parsing JSON encoded command body ...");
-        const parsedBody = JSON.parse(rawBody) as Record<string, any>;
-        console.log("[slash-command/default] Done parsing JSON encoded command body");
-        return parsedBody;
-      } catch (err) {
-        console.error(
-          `[slash-command/default] Error parsing JSON encoded command body: ${err.message}`
-        );
-        return {};
-      }
-    } else {
-      return evt.body as Record<string, any>;
-    }
-  } else if (contentType === "application/x-www-form-urlencoded") {
-    const rawBody = evt.isBase64Encoded
-      ? Buffer.from(evt.body as string, "base64").toString("utf-8")
-      : (evt.body as string);
-    console.log(`[slash-command/default] Got form URL encoded command body: ${rawBody}`);
-
-    verifyFormUrlEncodedEventSignature(
-      signingVersion,
-      signingSecret,
-      rawBody,
-      requestTimestamp,
-      signature
-    );
-
-    try {
-      console.log("[slash-command/default] Parsing form URL encoded command body ...");
-      const parsedBody = querystring.parse(rawBody);
-      console.log("[slash-command/default] Done parsing form URL encoded command body");
-      return parsedBody;
-    } catch (err) {
-      console.error(
-        `[slash-command/default] Error parsing form URL encoded command body: ${err.message}`
-      );
-      return {};
-    }
-  } else {
-    console.error(`[slash-command/default] Unknown content-type: ${contentType}`);
-    return {};
-  }
-};
-
 export const handler: Handler<SlashCommandDefaultEvent> = async (evt) => {
   console.log("[slash-command/default] Event: ", evt);
 
@@ -152,7 +51,13 @@ export const handler: Handler<SlashCommandDefaultEvent> = async (evt) => {
   const jobsQueueUrl = processEnvGetString("JOBS_QUEUE_URL");
   const signingSecret = processEnvGetString("SIGNING_SECRET");
 
-  const commandPayload = extractEventBody(evt, "v0", signingSecret) as CommandPayload;
+  const commandPayload = extractEventBody(
+    "slash-command/default",
+    true,
+    evt,
+    "v0",
+    signingSecret
+  ) as CommandPayload;
 
   const commandName = `${commandPayload.command || ""}`.trim();
   const commandText = `${commandPayload.text || ""}`.trim();

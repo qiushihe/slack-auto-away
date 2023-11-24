@@ -50,3 +50,8 @@ variable "slack_app_signing_secret" {
   type        = string
   sensitive   = true
 }
+
+variable "loggable_slack_user_ids" {
+  description = "IDs of users whose data can be logged"
+  type        = list(string)
+}

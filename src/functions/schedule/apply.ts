@@ -1,7 +1,7 @@
 import { Handler } from "aws-lambda";
 
 export const handler: Handler<never> = async (evt) => {
-  console.log("[schedule/apple] Event: ", evt);
+  console.log("[schedule/apply] Event: ", evt);
 
   return {
     statusCode: 200,

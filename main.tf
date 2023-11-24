@@ -4,6 +4,7 @@ locals {
   oauth_start_url           = format("%s/oauth-start", module.lambda_gateway.invocation_url)
   oauth_callback_url        = format("%s/oauth-callback", module.lambda_gateway.invocation_url)
   slash_command_default_url = format("%s/slash-command-default", module.lambda_gateway.invocation_url)
+  event_subscription_url    = format("%s/event-subscription", module.lambda_gateway.invocation_url)
   public_asset_urls         = [for key in module.public_assets.asset_keys : "https://${module.assets_bucket.bucket_name}.s3.amazonaws.com/${key}"]
 }
 
@@ -298,6 +299,35 @@ module "job_functions_clear_auth" {
 
   environment_variables = {
     DATA_BUCKET_NAME = module.data_bucket.bucket_name
+  }
+
+  role_arn      = module.lambda_role.iam_role_arn
+  execution_arn = module.lambda_gateway.gateway_execution_arn
+  api_id        = module.lambda_gateway.gateway_api_id
+}
+
+module "event_functions" {
+  source          = "./modules/aws-lambda-functions"
+  bucket_id       = module.lambda_bucket.bucket_id
+  source_dir      = "${abspath(path.module)}/.build/src/functions/event"
+  output_dir      = "${abspath(path.module)}/.archives"
+  output_filename = "event-functions.zip"
+}
+
+module "event_functions_subscription" {
+  source           = "./modules/aws-lambda-function"
+  function_name    = "EventSubscription"
+  function_handler = "subscription"
+  function_method  = "POST"
+  function_path    = "/event-subscription"
+
+  s3_bucket        = module.event_functions.archive_bucket
+  s3_key           = module.event_functions.archive_key
+  source_code_hash = module.event_functions.archive_base64sha256
+
+  environment_variables = {
+    SIGNING_SECRET    = var.slack_app_signing_secret
+    LOGGABLE_USER_IDS = join(",", var.loggable_slack_user_ids)
   }
 
   role_arn      = module.lambda_role.iam_role_arn
