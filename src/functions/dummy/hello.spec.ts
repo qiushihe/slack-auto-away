@@ -4,7 +4,7 @@ import { handler } from "./hello";
 
 describe("functions / dummy / hello", () => {
   it("should work", async () => {
-    const res = await handler();
+    const res = await (handler as any)();
     expect(res).toHaveProperty("body");
 
     const body = JSON.parse(res.body);

@@ -1,0 +1,27 @@
+version: "3.8"
+
+services:
+  localstack:
+    container_name: ${LOCALSTACK_DOCKER_CONTAINER_NAME-localstack}
+    image: localstack/localstack:stable
+    ports:
+      - "4566:4566" # LocalStack Gateway
+      - "4510-4559:4510-4559" # external services port range
+    environment:
+      - SERVICES=s3 # Comma separate list of services (i.e. s3,sqs)
+      - DEBUG="${DEBUG-0}" # Set `DEBUG=1` on CLI for debug output
+      - ACTIVATE_PRO=0
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - localstack-volume:/var/lib/localstack
+    networks:
+      - localstack-network
+
+networks:
+  localstack-network:
+    name: ${LOCALSTACK_DOCKER_NETWORK_NAME-localstack}
+
+volumes:
+  localstack-volume:
+    name: ${LOCALSTACK_DOCKER_VOLUME_NAME-localstack}

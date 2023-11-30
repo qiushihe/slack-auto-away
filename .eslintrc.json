@@ -33,6 +33,8 @@
             "groups": [
               // Side effect imports
               ["^\\u0000"],
+              // Absolute unit test imports
+              ["^@?jest"],
               // Absolute imports
               ["^@?\\w"],
               // Absolute project imports
