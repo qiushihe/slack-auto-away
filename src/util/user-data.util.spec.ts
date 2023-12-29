@@ -10,7 +10,7 @@ import {
 
 import { userDataS3StorageKey } from "../constant/s3.constant";
 import { NamespacedLogger, UnitTestNamespacedLogger } from "./logger.util";
-import { getUserData, setUserData, UserData } from "./user-data.util";
+import { deleteUserData, getUserData, setUserData, UserData } from "./user-data.util";
 import { uuidV4 } from "./uuid.util";
 
 describe("util / user-data", () => {
@@ -149,6 +149,65 @@ describe("util / user-data", () => {
           expect(userData).toHaveProperty("userId", userData.userId);
           expect(userData).toHaveProperty("authToken", userData.authToken);
           expect(userData).toHaveProperty("timezoneName", timezoneName);
+        });
+      });
+    });
+  });
+
+  describe("deleteUserData", () => {
+    it("should return error when bucket does not exist", async () => {
+      const err = await deleteUserData(logger, s3, bucketName, userId);
+
+      expect(err).toBeInstanceOf(S3ServiceException);
+      expect(err as S3ServiceException).toHaveProperty("name", "NoSuchBucket");
+    });
+
+    describe("when bucket exists", () => {
+      beforeEach(async () => {
+        await s3.send(new CreateBucketCommand({ Bucket: bucketName }));
+      });
+
+      it("should not return error when user data file does not exist", async () => {
+        const err = await deleteUserData(logger, s3, bucketName, userId);
+        expect(err).toBeNull();
+      });
+
+      describe("when user data file exists", () => {
+        let userData: UserData;
+
+        beforeEach(async () => {
+          userData = { userId, authToken: `test-auth-token-${uuidV4()}` };
+
+          await s3.send(
+            new PutObjectCommand({
+              Bucket: bucketName,
+              Key: userDataS3StorageKey(userId),
+              Body: JSON.stringify(userData)
+            })
+          );
+        });
+
+        it("should delete user data file", async () => {
+          await expect(
+            s3.send(
+              new GetObjectCommand({
+                Bucket: bucketName,
+                Key: userDataS3StorageKey(userId)
+              })
+            )
+          ).resolves.not.toThrow();
+
+          const err = await deleteUserData(logger, s3, bucketName, userId);
+          expect(err).toBeNull();
+
+          await expect(
+            s3.send(
+              new GetObjectCommand({
+                Bucket: bucketName,
+                Key: userDataS3StorageKey(userId)
+              })
+            )
+          ).rejects.toThrow("The specified key does not exist.");
         });
       });
     });
