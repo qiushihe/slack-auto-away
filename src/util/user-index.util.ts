@@ -1,8 +1,10 @@
 import {
   DeleteObjectCommand,
+  GetObjectCommand,
   ListObjectsV2Command,
   PutObjectCommand,
-  S3Client
+  S3Client,
+  S3ServiceException
 } from "@aws-sdk/client-s3";
 
 import { INDEX_PREFIX, IndexName } from "~src/constant/index.constant";
@@ -107,4 +109,36 @@ export const removeUserIdFromIndex = async (
   }
 
   return null;
+};
+
+export const isUserIdIndexed = async (
+  logger: NamespacedLogger,
+  s3: S3Client,
+  bucketName: string,
+  indexName: IndexName,
+  userId: string
+): Promise<[Error, null] | [null, boolean]> => {
+  const [getObjectErr, getObjectRes] = await promisedFn(() =>
+    s3.send(
+      new GetObjectCommand({
+        Bucket: bucketName,
+        Key: `${INDEX_PREFIX}${indexName}/${userId}`
+      })
+    )
+  );
+  if (getObjectErr) {
+    if ((getObjectErr as S3ServiceException).name === "NoSuchKey") {
+      // Ignore the error for when the user data file doesn't exist, because in
+      // that case it just means the user ID is not indexed.
+      logger.warn(`User ID index file does not exist`);
+      return [null, false];
+    } else {
+      logger.error(
+        `Error getting user ID ${userId} from ${indexName} index: ${getObjectErr.message}`
+      );
+      return [getObjectErr, null];
+    }
+  }
+
+  return [null, (getObjectRes?.ContentLength || 0) > 0];
 };

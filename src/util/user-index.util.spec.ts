@@ -10,7 +10,12 @@ import {
 
 import { INDEX_PREFIX, IndexName } from "../constant/index.constant";
 import { NamespacedLogger, UnitTestNamespacedLogger } from "./logger.util";
-import { addUserIdToIndex, getIndexedUserIds, removeUserIdFromIndex } from "./user-index.util";
+import {
+  addUserIdToIndex,
+  getIndexedUserIds,
+  isUserIdIndexed,
+  removeUserIdFromIndex
+} from "./user-index.util";
 import { uuidV4 } from "./uuid.util";
 
 describe("util / user-index", () => {
@@ -240,6 +245,61 @@ describe("util / user-index", () => {
           userId
         );
         expect(err).toBeNull();
+      });
+    });
+  });
+
+  describe("isUserIdIndexed", () => {
+    let userId: string;
+
+    beforeEach(() => {
+      userId = `user-id-${uuidV4()}`;
+    });
+
+    it("should return error when bucket does not exist", async () => {
+      const [err] = await isUserIdIndexed(logger, s3, bucketName, IndexName.HAS_AUTH, userId);
+
+      expect(err).toBeInstanceOf(S3ServiceException);
+      expect(err as S3ServiceException).toHaveProperty("name", "NoSuchBucket");
+    });
+
+    describe("when bucket exists", () => {
+      beforeEach(async () => {
+        await s3.send(new CreateBucketCommand({ Bucket: bucketName }));
+      });
+
+      it("should indicate when user ID is not indexed", async () => {
+        const [err, isIndexed] = await isUserIdIndexed(
+          logger,
+          s3,
+          bucketName,
+          IndexName.HAS_AUTH,
+          userId
+        );
+        expect(err).toBeNull();
+        expect(isIndexed).toEqual(false);
+      });
+
+      it("should indicate when user ID is indexed", async () => {
+        await expect(
+          s3.send(
+            new PutObjectCommand({
+              Bucket: bucketName,
+              Key: `${INDEX_PREFIX}${IndexName.HAS_AUTH}/${userId}`,
+              Body: `${IndexName.HAS_AUTH}:${userId}`
+            })
+          )
+        ).resolves.not.toThrow();
+
+        const [err, isIndexed] = await isUserIdIndexed(
+          logger,
+          s3,
+          bucketName,
+          IndexName.HAS_AUTH,
+          userId
+        );
+        expect(err).toBeNull();
+        expect(isIndexed).toEqual(true);
       });
     });
   });
