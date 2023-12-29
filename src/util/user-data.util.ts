@@ -7,7 +7,7 @@ import {
   S3ServiceException
 } from "@aws-sdk/client-s3";
 
-import { userDataS3StorageKey } from "~src/constant/s3.constant";
+import { userDataS3StorageKey } from "~src/constant/user-data.constant";
 import { NamespacedLogger } from "~src/util/logger.util";
 import { promisedFn } from "~src/util/promise.util";
 

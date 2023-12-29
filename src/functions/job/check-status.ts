@@ -1,7 +1,10 @@
 import { GetObjectCommand, GetObjectCommandOutput, S3Client } from "@aws-sdk/client-s3";
 import { Handler } from "aws-lambda";
 
-import { userAccessTokenS3StorageKey, userScheduleS3StorageKey } from "~src/constant/s3.constant";
+import {
+  userAccessTokenS3StorageKey,
+  userScheduleS3StorageKey
+} from "~src/constant/user-data.constant";
 import { CheckStatusJob } from "~src/job/job.type";
 import { UserSchedule } from "~src/schedule/schedule.type";
 import { processEnvGetString } from "~src/util/env.util";

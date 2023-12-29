@@ -1,7 +1,7 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { Handler } from "aws-lambda";
 
-import { userScheduleS3StorageKey } from "~src/constant/s3.constant";
+import { userScheduleS3StorageKey } from "~src/constant/user-data.constant";
 import { StoreScheduleJob } from "~src/job/job.type";
 import { UserSchedule } from "~src/schedule/schedule.type";
 import { processEnvGetString } from "~src/util/env.util";

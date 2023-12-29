@@ -8,7 +8,7 @@ import {
   S3ServiceException
 } from "@aws-sdk/client-s3";
 
-import { INDEX_PREFIX, IndexName } from "../constant/index.constant";
+import { INDEX_PREFIX, IndexName } from "../constant/user-index.constant";
 import { NamespacedLogger, UnitTestNamespacedLogger } from "./logger.util";
 import {
   addUserIdToIndex,

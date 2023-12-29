@@ -8,7 +8,7 @@ import {
   S3ServiceException
 } from "@aws-sdk/client-s3";
 
-import { userDataS3StorageKey } from "../constant/s3.constant";
+import { userDataS3StorageKey } from "../constant/user-data.constant";
 import { NamespacedLogger, UnitTestNamespacedLogger } from "./logger.util";
 import { deleteUserData, getUserData, setUserData, UserData } from "./user-data.util";
 import { uuidV4 } from "./uuid.util";
