@@ -52,6 +52,7 @@ module "lambda_role" {
     module.job_functions_check_status.function_arn,
     module.job_functions_store_schedule.function_arn,
     module.job_functions_clear_schedule.function_arn,
+    module.job_functions_store_auth.function_arn,
     module.job_functions_clear_auth.function_arn
   ]
 }
@@ -146,7 +147,7 @@ module "oauth_functions_callback" {
   source_code_hash = module.oauth_functions.archive_base64sha256
 
   environment_variables = {
-    DATA_BUCKET_NAME   = module.data_bucket.bucket_name
+    JOBS_QUEUE_URL     = aws_sqs_queue.jobs.url
     CLIENT_ID          = var.slack_app_client_id
     CLIENT_SECRET      = var.slack_app_client_secret
     OAUTH_CALLBACK_URL = local.oauth_callback_url
@@ -210,6 +211,7 @@ module "job_functions_dispatch" {
     FUNCTION_ARN_CHECK_STATUS   = module.job_functions_check_status.function_arn
     FUNCTION_ARN_STORE_SCHEDULE = module.job_functions_store_schedule.function_arn
     FUNCTION_ARN_CLEAR_SCHEDULE = module.job_functions_clear_schedule.function_arn
+    FUNCTION_ARN_STORE_AUTH     = module.job_functions_store_auth.function_arn
     FUNCTION_ARN_CLEAR_AUTH     = module.job_functions_clear_auth.function_arn
   }
 
@@ -274,6 +276,24 @@ module "job_functions_clear_schedule" {
   source           = "./modules/aws-lambda-function"
   function_name    = "JobClearSchedule"
   function_handler = "clear-schedule"
+
+  s3_bucket        = module.job_functions.archive_bucket
+  s3_key           = module.job_functions.archive_key
+  source_code_hash = module.job_functions.archive_base64sha256
+
+  environment_variables = {
+    DATA_BUCKET_NAME = module.data_bucket.bucket_name
+  }
+
+  role_arn      = module.lambda_role.iam_role_arn
+  execution_arn = module.lambda_gateway.gateway_execution_arn
+  api_id        = module.lambda_gateway.gateway_api_id
+}
+
+module "job_functions_store_auth" {
+  source           = "./modules/aws-lambda-function"
+  function_name    = "JobStoreAuth"
+  function_handler = "store-auth"
 
   s3_bucket        = module.job_functions.archive_bucket
   s3_key           = module.job_functions.archive_key

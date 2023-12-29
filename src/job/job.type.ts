@@ -30,6 +30,12 @@ export interface ClearScheduleJob extends Job {
   userId: string;
 }
 
+export interface StoreAuthJob extends Job {
+  type: JobName.STORE_AUTH;
+  userId: string;
+  authToken: string;
+}
+
 export interface ClearAuthJob extends Job {
   type: JobName.CLEAR_AUTH;
   responseUrl: string;

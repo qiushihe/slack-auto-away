@@ -1,14 +1,12 @@
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { Handler } from "aws-lambda";
 
-import { userAccessTokenS3StorageKey } from "~src/constant/s3.constant";
+import { JobName } from "~src/constant/job.constant";
+import { StoreAuthJob } from "~src/job/job.type";
 import { processEnvGetString } from "~src/util/env.util";
 import { promisedFn } from "~src/util/promise.util";
 import { escapeRegExp } from "~src/util/regexp.util";
 import { jsonResponse, redirectResponse } from "~src/util/response.util";
-
-// Set away
-// https://api.slack.com/methods/users.setPresence
 
 interface OAuthCallbackEvent {
   queryStringParameters: {
@@ -24,7 +22,7 @@ enum RESPONSE_CODE {
   USER_DATA_ERROR = 3,
   PERMISSION_ERROR = 4,
   TOKEN_ERROR = 5,
-  S3_ERROR = 6
+  SQS_ERROR = 6
 }
 
 const redirectOrJsonResponder = (destinationUrl: string | null | undefined) => {
@@ -60,7 +58,7 @@ const findAssetUrl = (urls: string[], filename: string) => {
 export const handler: Handler<OAuthCallbackEvent> = async (evt) => {
   console.log("[oauth/callback] Event: ", evt);
 
-  const dataBucketName = processEnvGetString("DATA_BUCKET_NAME");
+  const jobsQueueUrl = processEnvGetString("JOBS_QUEUE_URL");
   const clientId = processEnvGetString("CLIENT_ID");
   const clientSecret = processEnvGetString("CLIENT_SECRET");
   const oauthCallbackUrl = processEnvGetString("OAUTH_CALLBACK_URL");
@@ -162,24 +160,29 @@ export const handler: Handler<OAuthCallbackEvent> = async (evt) => {
     return response(RESPONSE_CODE.TOKEN_ERROR);
   }
 
-  console.log("[oauth/callback] Storing user access token ...");
-  const [putObjectErr] = await promisedFn(
+  console.log(`[oauth/callback] Enqueuing ${JobName.STORE_AUTH} job ...`);
+  const [queueErr] = await promisedFn(
     (id: string, token: string) =>
-      new S3Client().send(
-        new PutObjectCommand({
-          Bucket: dataBucketName,
-          Key: userAccessTokenS3StorageKey(id),
-          Body: token
+      new SQSClient().send(
+        new SendMessageCommand({
+          QueueUrl: jobsQueueUrl,
+          MessageBody: JSON.stringify({
+            type: JobName.STORE_AUTH,
+            userId: id,
+            authToken: token
+          } as StoreAuthJob)
         })
       ),
     userId,
     userAccessToken
   );
-  if (putObjectErr) {
-    console.error(`[oauth/callback] Error storing user access token: ${putObjectErr.message}`);
-    return response(RESPONSE_CODE.S3_ERROR);
+  if (queueErr) {
+    console.error(
+      `[oauth/callback] Error enqueuing ${JobName.STORE_AUTH} job: ${queueErr.message}`
+    );
+    return response(RESPONSE_CODE.SQS_ERROR);
   } else {
-    console.log("[oauth/callback] Done storing user access token");
+    console.log(`[oauth/callback] Done enqueuing ${JobName.STORE_AUTH} job`);
   }
 
   return response(RESPONSE_CODE.SUCCESS);

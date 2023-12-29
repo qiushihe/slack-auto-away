@@ -22,6 +22,7 @@ export const handler: Handler<JobProcessEvent> = async (evt) => {
   const functionArnCheckStatus = processEnvGetString("FUNCTION_ARN_CHECK_STATUS");
   const functionArnStoreSchedule = processEnvGetString("FUNCTION_ARN_STORE_SCHEDULE");
   const functionArnClearSchedule = processEnvGetString("FUNCTION_ARN_CLEAR_SCHEDULE");
+  const functionArnStoreAuth = processEnvGetString("FUNCTION_ARN_STORE_AUTH");
   const functionArnClearAuth = processEnvGetString("FUNCTION_ARN_CLEAR_AUTH");
 
   console.log(`[job/dispatch] Dispatching jobs ...`);
@@ -38,6 +39,8 @@ export const handler: Handler<JobProcessEvent> = async (evt) => {
         functionArn = functionArnStoreSchedule;
       } else if (job.type === JobName.CLEAR_SCHEDULE) {
         functionArn = functionArnClearSchedule;
+      } else if (job.type === JobName.STORE_AUTH) {
+        functionArn = functionArnStoreAuth;
       } else if (job.type === JobName.CLEAR_AUTH) {
         functionArn = functionArnClearAuth;
       }
