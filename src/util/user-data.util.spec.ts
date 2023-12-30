@@ -8,9 +8,9 @@ import {
   S3ServiceException
 } from "@aws-sdk/client-s3";
 
-import { userDataS3StorageKey } from "../constant/user-data.constant";
+import { USER_DATA_PREFIX, UserData } from "../constant/user-data.constant";
 import { NamespacedLogger, UnitTestNamespacedLogger } from "./logger.util";
-import { deleteUserData, getUserData, setUserData, UserData } from "./user-data.util";
+import { deleteUserData, getUserData, setUserData } from "./user-data.util";
 import { uuidV4 } from "./uuid.util";
 
 describe("util / user-data", () => {
@@ -61,7 +61,7 @@ describe("util / user-data", () => {
           await s3.send(
             new PutObjectCommand({
               Bucket: bucketName,
-              Key: userDataS3StorageKey(userId),
+              Key: `${USER_DATA_PREFIX}${userId}.json`,
               Body: JSON.stringify(userData)
             })
           );
@@ -103,7 +103,7 @@ describe("util / user-data", () => {
         expect(err).toBeNull();
 
         const getObjectOutput = await s3.send(
-          new GetObjectCommand({ Bucket: bucketName, Key: userDataS3StorageKey(userId) })
+          new GetObjectCommand({ Bucket: bucketName, Key: `${USER_DATA_PREFIX}${userId}.json` })
         );
 
         expect(getObjectOutput).not.toBeNull();
@@ -125,7 +125,7 @@ describe("util / user-data", () => {
           await s3.send(
             new PutObjectCommand({
               Bucket: bucketName,
-              Key: userDataS3StorageKey(userId),
+              Key: `${USER_DATA_PREFIX}${userId}.json`,
               Body: JSON.stringify(userData)
             })
           );
@@ -137,7 +137,7 @@ describe("util / user-data", () => {
           expect(err).toBeNull();
 
           const getObjectOutput = await s3.send(
-            new GetObjectCommand({ Bucket: bucketName, Key: userDataS3StorageKey(userId) })
+            new GetObjectCommand({ Bucket: bucketName, Key: `${USER_DATA_PREFIX}${userId}.json` })
           );
 
           expect(getObjectOutput).not.toBeNull();
@@ -181,7 +181,7 @@ describe("util / user-data", () => {
           await s3.send(
             new PutObjectCommand({
               Bucket: bucketName,
-              Key: userDataS3StorageKey(userId),
+              Key: `${USER_DATA_PREFIX}${userId}.json`,
               Body: JSON.stringify(userData)
             })
           );
@@ -192,7 +192,7 @@ describe("util / user-data", () => {
             s3.send(
               new GetObjectCommand({
                 Bucket: bucketName,
-                Key: userDataS3StorageKey(userId)
+                Key: `${USER_DATA_PREFIX}${userId}.json`
               })
             )
           ).resolves.not.toThrow();
@@ -204,7 +204,7 @@ describe("util / user-data", () => {
             s3.send(
               new GetObjectCommand({
                 Bucket: bucketName,
-                Key: userDataS3StorageKey(userId)
+                Key: `${USER_DATA_PREFIX}${userId}.json`
               })
             )
           ).rejects.toThrow("The specified key does not exist.");

@@ -53,7 +53,7 @@ module "lambda_role" {
     module.job_functions_store_schedule.function_arn,
     module.job_functions_clear_schedule.function_arn,
     module.job_functions_store_auth.function_arn,
-    module.job_functions_clear_auth.function_arn
+    module.job_functions_logout.function_arn
   ]
 }
 
@@ -212,7 +212,7 @@ module "job_functions_dispatch" {
     FUNCTION_ARN_STORE_SCHEDULE = module.job_functions_store_schedule.function_arn
     FUNCTION_ARN_CLEAR_SCHEDULE = module.job_functions_clear_schedule.function_arn
     FUNCTION_ARN_STORE_AUTH     = module.job_functions_store_auth.function_arn
-    FUNCTION_ARN_CLEAR_AUTH     = module.job_functions_clear_auth.function_arn
+    FUNCTION_ARN_LOGOUT         = module.job_functions_logout.function_arn
   }
 
   role_arn      = module.lambda_role.iam_role_arn
@@ -308,10 +308,10 @@ module "job_functions_store_auth" {
   api_id        = module.lambda_gateway.gateway_api_id
 }
 
-module "job_functions_clear_auth" {
+module "job_functions_logout" {
   source           = "./modules/aws-lambda-function"
-  function_name    = "JobClearAuth"
-  function_handler = "clear-auth"
+  function_name    = "JobLogout"
+  function_handler = "logout"
 
   s3_bucket        = module.job_functions.archive_bucket
   s3_key           = module.job_functions.archive_key

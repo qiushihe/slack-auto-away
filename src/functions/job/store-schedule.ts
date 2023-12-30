@@ -1,46 +1,40 @@
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { S3Client } from "@aws-sdk/client-s3";
 import { Handler } from "aws-lambda";
 
-import { userScheduleS3StorageKey } from "~src/constant/user-data.constant";
 import { StoreScheduleJob } from "~src/job/job.type";
-import { UserSchedule } from "~src/schedule/schedule.type";
 import { processEnvGetString } from "~src/util/env.util";
+import { NamespacedLogger } from "~src/util/logger.util";
 import { promisedFn } from "~src/util/promise.util";
 import { emptyResponse } from "~src/util/response.util";
+import { setUserData } from "~src/util/user-data.util";
 
 type StoreScheduleEvent = {
   Job: StoreScheduleJob;
 };
 
+const logger = new NamespacedLogger("job/store-schedule");
+
 export const handler: Handler<StoreScheduleEvent> = async (evt) => {
-  console.log("[job/store-schedule] Event: ", evt);
+  logger.log("Event: ", evt);
 
   const dataBucketName = processEnvGetString("DATA_BUCKET_NAME");
 
-  console.log("[job/store-schedule] Storing user schedule ...");
-  const [putObjectErr] = await promisedFn(
-    (id: string, schedule: UserSchedule) =>
-      new S3Client().send(
-        new PutObjectCommand({
-          Bucket: dataBucketName,
-          Key: userScheduleS3StorageKey(id),
-          Body: JSON.stringify(schedule)
-        })
-      ),
-    evt.Job.userId,
-    { userId: evt.Job.userId, fromHour24: evt.Job.fromHour24, toHour24: evt.Job.toHour24 }
-  );
+  logger.log("Storing user schedule ...");
+  const setUserDataErr = await setUserData(logger, new S3Client(), dataBucketName, evt.Job.userId, {
+    scheduleFromHour24: evt.Job.fromHour24,
+    scheduleToHour24: evt.Job.toHour24
+  });
 
   let responseMessage: string;
-  if (putObjectErr) {
-    console.error(`[job/store-schedule] Error storing user schedule: ${putObjectErr.message}`);
+  if (setUserDataErr) {
+    logger.error(`Error storing user schedule: ${setUserDataErr.message}`);
     responseMessage = `Unable to store schedule.`;
   } else {
-    console.log("[job/store-schedule] Done storing user schedule");
+    logger.log("Done storing user schedule");
     responseMessage = `Schedule stored.`;
   }
 
-  console.log(`[job/store-schedule] Sending response ...`);
+  logger.log(`Sending response ...`);
   const [err] = await promisedFn(() =>
     fetch(evt.Job.responseUrl, {
       method: "POST",
@@ -49,9 +43,9 @@ export const handler: Handler<StoreScheduleEvent> = async (evt) => {
     })
   );
   if (err) {
-    console.error(`[job/store-schedule] Error sending response: ${err.message}`);
+    logger.error(`Error sending response: ${err.message}`);
   } else {
-    console.log(`[job/store-schedule] Done sending response`);
+    logger.log(`Done sending response`);
   }
 
   return emptyResponse();

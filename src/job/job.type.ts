@@ -36,8 +36,8 @@ export interface StoreAuthJob extends Job {
   authToken: string;
 }
 
-export interface ClearAuthJob extends Job {
-  type: JobName.CLEAR_AUTH;
+export interface LogoutJob extends Job {
+  type: JobName.LOGOUT;
   responseUrl: string;
   userId: string;
 }

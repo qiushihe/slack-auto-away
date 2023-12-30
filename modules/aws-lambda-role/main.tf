@@ -1,5 +1,5 @@
 locals {
-  policy_bucket_arns   = [for item in var.bucket_arns : "${item}/*"]
+  policy_bucket_arns   = flatten([for item in var.bucket_arns : [item, "${item}/*"]])
   policy_queue_arns    = [for item in var.queue_arns : "${item}"]
   policy_function_arns = [for item in var.function_arns : "${item}"]
 }

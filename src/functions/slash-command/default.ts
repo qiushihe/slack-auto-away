@@ -4,8 +4,8 @@ import { Handler } from "aws-lambda";
 import { JobName } from "~src/constant/job.constant";
 import {
   CheckStatusJob,
-  ClearAuthJob,
   ClearScheduleJob,
+  LogoutJob,
   SendResponseJob,
   StoreScheduleJob
 } from "~src/job/job.type";
@@ -226,51 +226,30 @@ export const handler: Handler<SlashCommandDefaultEvent> = async (evt) => {
       text: "Clearing schedule ..."
     });
   } else if (commandWords[0] === "logout") {
-    console.log(`[slash-command/default] Enqueuing ${JobName.CLEAR_AUTH} job ...`);
-    const [queueClearAuthErr] = await promisedFn(() =>
+    console.log(`[slash-command/default] Enqueuing ${JobName.LOGOUT} job ...`);
+    const [queueErr] = await promisedFn(() =>
       new SQSClient().send(
         new SendMessageCommand({
           QueueUrl: jobsQueueUrl,
           MessageBody: JSON.stringify({
-            type: JobName.CLEAR_AUTH,
+            type: JobName.LOGOUT,
             responseUrl: commandResponseUrl,
             userId: commandUserId
-          } as ClearAuthJob)
+          } as LogoutJob)
         })
       )
     );
-    if (queueClearAuthErr) {
+    if (queueErr) {
       console.error(
-        `[slash-command/default] Error enqueuing ${JobName.CLEAR_AUTH} job: ${queueClearAuthErr.message}`
+        `[slash-command/default] Error enqueuing ${JobName.LOGOUT} job: ${queueErr.message}`
       );
     } else {
-      console.log(`[slash-command/default] Done enqueuing ${JobName.CLEAR_AUTH} job`);
-    }
-
-    console.log(`[slash-command/default] Enqueuing ${JobName.CLEAR_SCHEDULE} job ...`);
-    const [queueClearScheduleErr] = await promisedFn(() =>
-      new SQSClient().send(
-        new SendMessageCommand({
-          QueueUrl: jobsQueueUrl,
-          MessageBody: JSON.stringify({
-            type: JobName.CLEAR_SCHEDULE,
-            responseUrl: commandResponseUrl,
-            userId: commandUserId
-          } as ClearScheduleJob)
-        })
-      )
-    );
-    if (queueClearScheduleErr) {
-      console.error(
-        `[slash-command/default] Error enqueuing ${JobName.CLEAR_SCHEDULE} job: ${queueClearScheduleErr.message}`
-      );
-    } else {
-      console.log(`[slash-command/default] Done enqueuing ${JobName.CLEAR_SCHEDULE} job`);
+      console.log(`[slash-command/default] Done enqueuing ${JobName.LOGOUT} job`);
     }
 
     return jsonResponse({
       response_type: "ephemeral",
-      text: "Clearing auth and schedule ..."
+      text: "Logging out ..."
     });
   } else if (commandWords[0] === "debug") {
     return jsonResponse({

@@ -1,33 +1,39 @@
 import { S3Client } from "@aws-sdk/client-s3";
 import { Handler } from "aws-lambda";
 
-import { ClearScheduleJob } from "~src/job/job.type";
+import { LogoutJob } from "~src/job/job.type";
 import { processEnvGetString } from "~src/util/env.util";
 import { NamespacedLogger } from "~src/util/logger.util";
 import { promisedFn } from "~src/util/promise.util";
 import { emptyResponse } from "~src/util/response.util";
-import { setUserData } from "~src/util/user-data.util";
+import { deleteUserData } from "~src/util/user-data.util";
 
-type ClearScheduleEvent = {
-  Job: ClearScheduleJob;
+type LogoutEvent = {
+  Job: LogoutJob;
 };
 
-const logger = new NamespacedLogger("job/clear-schedule");
+const logger = new NamespacedLogger("job/logout");
 
-export const handler: Handler<ClearScheduleEvent> = async (evt) => {
+export const handler: Handler<LogoutEvent> = async (evt) => {
   logger.log("Event: ", evt);
 
   const dataBucketName = processEnvGetString("DATA_BUCKET_NAME");
 
-  logger.log(`Clearing user schedule ...`);
-  const setUserDataErr = await setUserData(logger, new S3Client(), dataBucketName, evt.Job.userId, {
-    scheduleFromHour24: undefined,
-    scheduleToHour24: undefined
-  });
-  if (setUserDataErr) {
-    logger.error(`Error clearing user schedule: ${setUserDataErr.message}`);
+  logger.log(`Deleting user data ...`);
+  const deleteUserDataErr = await deleteUserData(
+    logger,
+    new S3Client(),
+    dataBucketName,
+    evt.Job.userId
+  );
+
+  let responseMessage: string;
+  if (deleteUserDataErr) {
+    logger.error(`Error deleting user data: ${deleteUserDataErr.message}`);
+    responseMessage = `Unable to log out.`;
   } else {
-    logger.log(`Done clearing user schedule`);
+    logger.log(`Done deleting user data`);
+    responseMessage = `Logged out.`;
   }
 
   logger.log(`Sending response ...`);
@@ -35,7 +41,7 @@ export const handler: Handler<ClearScheduleEvent> = async (evt) => {
     fetch(evt.Job.responseUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: "Schedule cleared." })
+      body: JSON.stringify({ text: responseMessage })
     })
   );
   if (err) {

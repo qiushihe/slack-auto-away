@@ -7,19 +7,9 @@ import {
   S3ServiceException
 } from "@aws-sdk/client-s3";
 
-import { userDataS3StorageKey } from "~src/constant/user-data.constant";
+import { USER_DATA_PREFIX, UserData } from "~src/constant/user-data.constant";
 import { NamespacedLogger } from "~src/util/logger.util";
 import { promisedFn } from "~src/util/promise.util";
-
-// This structure should be kept flat so object spread can effectively merge old/new data without
-// having to worry about deep cloning.
-export type UserData = {
-  userId: string;
-  authToken?: string;
-  scheduleFromHour24?: number;
-  scheduleToHour24?: number;
-  timezoneName?: string;
-};
 
 export const getUserData = async (
   logger: NamespacedLogger,
@@ -27,13 +17,15 @@ export const getUserData = async (
   bucketName: string,
   userId: string
 ): Promise<[Error, null] | [null, UserData | null]> => {
-  const [getDataFileErr, getDataFileRes] = await promisedFn(() =>
-    s3.send(
-      new GetObjectCommand({
-        Bucket: bucketName,
-        Key: userDataS3StorageKey(userId)
-      })
-    )
+  const [getDataFileErr, getDataFileRes] = await promisedFn(
+    (id: string) =>
+      s3.send(
+        new GetObjectCommand({
+          Bucket: bucketName,
+          Key: `${USER_DATA_PREFIX}${id}.json`
+        })
+      ),
+    userId
   );
   if (getDataFileErr) {
     logger.error(`Error getting data file from S3: ${getDataFileErr.message}`);
@@ -91,8 +83,10 @@ export const setUserData = async (
       s3.send(
         new PutObjectCommand({
           Bucket: bucketName,
-          Key: userDataS3StorageKey(id),
-          Body: JSON.stringify(userData)
+          Key: `${USER_DATA_PREFIX}${id}.json`,
+          Body: JSON.stringify(userData),
+          ContentType: "application/json",
+          ContentDisposition: "inline"
         })
       ),
     userId,
@@ -134,7 +128,7 @@ export const deleteUserData = async (
       s3.send(
         new DeleteObjectCommand({
           Bucket: bucketName,
-          Key: userDataS3StorageKey(id)
+          Key: `${USER_DATA_PREFIX}${id}.json`
         })
       ),
     userId

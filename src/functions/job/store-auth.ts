@@ -1,39 +1,31 @@
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { S3Client } from "@aws-sdk/client-s3";
 import { Handler } from "aws-lambda";
 
-import { userAccessTokenS3StorageKey } from "~src/constant/user-data.constant";
 import { StoreAuthJob } from "~src/job/job.type";
 import { processEnvGetString } from "~src/util/env.util";
-import { promisedFn } from "~src/util/promise.util";
+import { NamespacedLogger } from "~src/util/logger.util";
 import { emptyResponse } from "~src/util/response.util";
+import { setUserData } from "~src/util/user-data.util";
 
 type StoreAuthEvent = {
   Job: StoreAuthJob;
 };
+
+const logger = new NamespacedLogger("job/store-auth");
 
 export const handler: Handler<StoreAuthEvent> = async (evt) => {
   console.log("[job/store-auth] Event: ", evt);
 
   const dataBucketName = processEnvGetString("DATA_BUCKET_NAME");
 
-  console.log("[job/store-auth] Storing user auth file ...");
-  const [putObjectErr] = await promisedFn(
-    (id: string, token: string) =>
-      new S3Client().send(
-        new PutObjectCommand({
-          Bucket: dataBucketName,
-          Key: userAccessTokenS3StorageKey(id),
-          Body: token
-        })
-      ),
-    evt.Job.userId,
-    evt.Job.authToken
-  );
-
-  if (putObjectErr) {
-    console.error(`[job/store-auth] Error storing user auth file: ${putObjectErr.message}`);
+  logger.log("Storing user auth token ...");
+  const setUserDataErr = await setUserData(logger, new S3Client(), dataBucketName, evt.Job.userId, {
+    authToken: evt.Job.authToken
+  });
+  if (setUserDataErr) {
+    logger.error(`Error storing user auth token: ${setUserDataErr.message}`);
   } else {
-    console.log("[job/store-auth] Done storing user auth file");
+    logger.log("Done storing user auth token");
   }
 
   return emptyResponse();
