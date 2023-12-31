@@ -73,9 +73,9 @@ export const handler: Handler<EventSubscriptionEvent> = async (evt) => {
     if (slackEvent.type === SlackEventType.UserChange) {
       const user = (slackEvent as UserChangeSlackEvent).user;
       if (loggableUserIds.includes(user.id)) {
-        console.log("[event/subscription] Received User Change event: ", user);
+        console.log("[event/subscription] Received loggable User Change event: ", user);
       } else {
-        console.log("[event/subscription] Received User Change event: ", user.id);
+        console.log("[event/subscription] Received non-loggable User Change event: ", user.id);
       }
     } else {
       console.warn(

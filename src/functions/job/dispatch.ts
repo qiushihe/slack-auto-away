@@ -24,6 +24,7 @@ export const handler: Handler<JobProcessEvent> = async (evt) => {
   const functionArnClearSchedule = processEnvGetString("FUNCTION_ARN_CLEAR_SCHEDULE");
   const functionArnStoreAuth = processEnvGetString("FUNCTION_ARN_STORE_AUTH");
   const functionArnLogout = processEnvGetString("FUNCTION_ARN_LOGOUT");
+  const functionArnIndexUserData = processEnvGetString("FUNCTION_ARN_INDEX_USER_DATA");
 
   console.log(`[job/dispatch] Dispatching jobs ...`);
   const dispatchResults = await Promise.all(
@@ -43,6 +44,8 @@ export const handler: Handler<JobProcessEvent> = async (evt) => {
         functionArn = functionArnStoreAuth;
       } else if (job.type === JobName.LOGOUT) {
         functionArn = functionArnLogout;
+      } else if (job.type === JobName.INDEX_USER_DATA) {
+        functionArn = functionArnIndexUserData;
       }
 
       if (functionArn) {

@@ -1,7 +1,9 @@
 import { S3Client } from "@aws-sdk/client-s3";
+import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
 import { Handler } from "aws-lambda";
 
-import { LogoutJob } from "~src/job/job.type";
+import { JobName } from "~src/constant/job.constant";
+import { IndexUserDataJob, LogoutJob } from "~src/job/job.type";
 import { processEnvGetString } from "~src/util/env.util";
 import { NamespacedLogger } from "~src/util/logger.util";
 import { promisedFn } from "~src/util/promise.util";
@@ -18,6 +20,7 @@ export const handler: Handler<LogoutEvent> = async (evt) => {
   logger.log("Event: ", evt);
 
   const dataBucketName = processEnvGetString("DATA_BUCKET_NAME");
+  const jobsQueueUrl = processEnvGetString("JOBS_QUEUE_URL");
 
   logger.log(`Deleting user data ...`);
   const deleteUserDataErr = await deleteUserData(
@@ -34,6 +37,24 @@ export const handler: Handler<LogoutEvent> = async (evt) => {
   } else {
     logger.log(`Done deleting user data`);
     responseMessage = `Logged out.`;
+  }
+
+  logger.log(`Enqueuing ${JobName.INDEX_USER_DATA} job ...`);
+  const [queueErr] = await promisedFn(() =>
+    new SQSClient().send(
+      new SendMessageCommand({
+        QueueUrl: jobsQueueUrl,
+        MessageBody: JSON.stringify({
+          type: JobName.INDEX_USER_DATA,
+          userId: evt.Job.userId
+        } as IndexUserDataJob)
+      })
+    )
+  );
+  if (queueErr) {
+    logger.error(`Error enqueuing ${JobName.INDEX_USER_DATA} job: ${queueErr.message}`);
+  } else {
+    logger.log(`Done enqueuing ${JobName.INDEX_USER_DATA} job`);
   }
 
   logger.log(`Sending response ...`);

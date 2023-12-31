@@ -53,7 +53,8 @@ module "lambda_role" {
     module.job_functions_store_schedule.function_arn,
     module.job_functions_clear_schedule.function_arn,
     module.job_functions_store_auth.function_arn,
-    module.job_functions_logout.function_arn
+    module.job_functions_logout.function_arn,
+    module.job_functions_index_user_data.function_arn
   ]
 }
 
@@ -207,12 +208,13 @@ module "job_functions_dispatch" {
   source_code_hash = module.job_functions.archive_base64sha256
 
   environment_variables = {
-    FUNCTION_ARN_SEND_RESPONSE  = module.job_functions_send_response.function_arn
-    FUNCTION_ARN_CHECK_STATUS   = module.job_functions_check_status.function_arn
-    FUNCTION_ARN_STORE_SCHEDULE = module.job_functions_store_schedule.function_arn
-    FUNCTION_ARN_CLEAR_SCHEDULE = module.job_functions_clear_schedule.function_arn
-    FUNCTION_ARN_STORE_AUTH     = module.job_functions_store_auth.function_arn
-    FUNCTION_ARN_LOGOUT         = module.job_functions_logout.function_arn
+    FUNCTION_ARN_SEND_RESPONSE   = module.job_functions_send_response.function_arn
+    FUNCTION_ARN_CHECK_STATUS    = module.job_functions_check_status.function_arn
+    FUNCTION_ARN_STORE_SCHEDULE  = module.job_functions_store_schedule.function_arn
+    FUNCTION_ARN_CLEAR_SCHEDULE  = module.job_functions_clear_schedule.function_arn
+    FUNCTION_ARN_STORE_AUTH      = module.job_functions_store_auth.function_arn
+    FUNCTION_ARN_LOGOUT          = module.job_functions_logout.function_arn
+    FUNCTION_ARN_INDEX_USER_DATA = module.job_functions_index_user_data.function_arn
   }
 
   role_arn      = module.lambda_role.iam_role_arn
@@ -265,6 +267,7 @@ module "job_functions_store_schedule" {
 
   environment_variables = {
     DATA_BUCKET_NAME = module.data_bucket.bucket_name
+    JOBS_QUEUE_URL   = aws_sqs_queue.jobs.url
   }
 
   role_arn      = module.lambda_role.iam_role_arn
@@ -283,6 +286,7 @@ module "job_functions_clear_schedule" {
 
   environment_variables = {
     DATA_BUCKET_NAME = module.data_bucket.bucket_name
+    JOBS_QUEUE_URL   = aws_sqs_queue.jobs.url
   }
 
   role_arn      = module.lambda_role.iam_role_arn
@@ -301,6 +305,7 @@ module "job_functions_store_auth" {
 
   environment_variables = {
     DATA_BUCKET_NAME = module.data_bucket.bucket_name
+    JOBS_QUEUE_URL   = aws_sqs_queue.jobs.url
   }
 
   role_arn      = module.lambda_role.iam_role_arn
@@ -312,6 +317,25 @@ module "job_functions_logout" {
   source           = "./modules/aws-lambda-function"
   function_name    = "JobLogout"
   function_handler = "logout"
+
+  s3_bucket        = module.job_functions.archive_bucket
+  s3_key           = module.job_functions.archive_key
+  source_code_hash = module.job_functions.archive_base64sha256
+
+  environment_variables = {
+    DATA_BUCKET_NAME = module.data_bucket.bucket_name
+    JOBS_QUEUE_URL   = aws_sqs_queue.jobs.url
+  }
+
+  role_arn      = module.lambda_role.iam_role_arn
+  execution_arn = module.lambda_gateway.gateway_execution_arn
+  api_id        = module.lambda_gateway.gateway_api_id
+}
+
+module "job_functions_index_user_data" {
+  source           = "./modules/aws-lambda-function"
+  function_name    = "JobIndexUserData"
+  function_handler = "index-user-data"
 
   s3_bucket        = module.job_functions.archive_bucket
   s3_key           = module.job_functions.archive_key

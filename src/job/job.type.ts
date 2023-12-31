@@ -41,3 +41,8 @@ export interface LogoutJob extends Job {
   responseUrl: string;
   userId: string;
 }
+
+export interface IndexUserDataJob extends Job {
+  type: JobName.INDEX_USER_DATA;
+  userId: string;
+}
