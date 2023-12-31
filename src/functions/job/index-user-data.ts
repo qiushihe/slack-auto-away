@@ -1,8 +1,8 @@
 import { S3Client } from "@aws-sdk/client-s3";
 import { Handler } from "aws-lambda";
 
+import { IndexUserDataJob } from "~src/constant/job.constant";
 import { IndexName } from "~src/constant/user-data.constant";
-import { IndexUserDataJob } from "~src/job/job.type";
 import { processEnvGetString } from "~src/util/env.util";
 import { NamespacedLogger } from "~src/util/logger.util";
 import { emptyResponse } from "~src/util/response.util";
@@ -59,11 +59,16 @@ export const handler: Handler<IndexUserDataEvent> = async (evt) => {
     logger.log(`Done getting user data`);
   }
 
+  const updateIndex = booleanIndexUpdater(logger, new S3Client(), dataBucketName, evt.Job.userId);
+
   if (!userData) {
     logger.error("User data not found");
+    await Promise.all([
+      updateIndex(IndexName.HAS_AUTH, () => false),
+      updateIndex(IndexName.HAS_TIMEZONE, () => false),
+      updateIndex(IndexName.HAS_SCHEDULE, () => false)
+    ]);
   } else {
-    const updateIndex = booleanIndexUpdater(logger, new S3Client(), dataBucketName, evt.Job.userId);
-
     await Promise.all([
       updateIndex(
         IndexName.HAS_AUTH,

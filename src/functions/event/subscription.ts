@@ -1,6 +1,11 @@
+import { SQSClient } from "@aws-sdk/client-sqs";
 import { Handler } from "aws-lambda";
 
+import { JobName } from "~src/constant/job.constant";
 import { processEnvGetString } from "~src/util/env.util";
+import { invokeJobCommand } from "~src/util/job.util";
+import { NamespacedLogger } from "~src/util/logger.util";
+import { promisedFn } from "~src/util/promise.util";
 import { extractEventBody, IVerifiableEvent } from "~src/util/request.util";
 
 interface EventSubscriptionEvent extends IVerifiableEvent {}
@@ -47,9 +52,12 @@ interface SlackUser {
 
 type EventPayload = UrlVerificationEventPayload | EventCallbackEventPayload;
 
+const logger = new NamespacedLogger("event/subscription");
+
 export const handler: Handler<EventSubscriptionEvent> = async (evt) => {
   const signingSecret = processEnvGetString("SIGNING_SECRET");
   const loggableUserIdsString = processEnvGetString("LOGGABLE_USER_IDS");
+  const jobsQueueUrl = processEnvGetString("JOBS_QUEUE_URL");
 
   const loggableUserIds = (loggableUserIdsString || "").trim().split(",");
 
@@ -62,7 +70,7 @@ export const handler: Handler<EventSubscriptionEvent> = async (evt) => {
   ) as EventPayload;
 
   if (eventPayload.type === EventType.UrlVerification) {
-    console.log("[event/subscription] Received URL Verification event");
+    logger.log("Received URL Verification event");
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/json" },
@@ -73,20 +81,35 @@ export const handler: Handler<EventSubscriptionEvent> = async (evt) => {
     if (slackEvent.type === SlackEventType.UserChange) {
       const user = (slackEvent as UserChangeSlackEvent).user;
       if (loggableUserIds.includes(user.id)) {
-        console.log("[event/subscription] Received loggable User Change event: ", user);
+        logger.log("Received loggable User Change event: ", user);
       } else {
-        console.log("[event/subscription] Received non-loggable User Change event: ", user.id);
+        logger.log("Received non-loggable User Change event: ", user.id);
+      }
+
+      if (user.tz) {
+        logger.log(`Enqueuing ${JobName.STORE_TIMEZONE} job ...`);
+        const [queueErr] = await promisedFn(
+          (userId: string, timezoneName: string) =>
+            new SQSClient().send(
+              invokeJobCommand(jobsQueueUrl, JobName.STORE_TIMEZONE, { userId, timezoneName })
+            ),
+          user.id,
+          user.tz
+        );
+        if (queueErr) {
+          logger.error(`Error enqueuing ${JobName.STORE_TIMEZONE} job: ${queueErr.message}`);
+        } else {
+          logger.log(`Done enqueuing ${JobName.STORE_TIMEZONE} job`);
+        }
+      } else {
+        logger.log("User has no timezone");
       }
     } else {
-      console.warn(
-        `[event/subscription] Unknown slack event type: ${(slackEvent as BaseSlackEvent).type}`
-      );
+      logger.warn(`Unknown slack event type: ${(slackEvent as BaseSlackEvent).type}`);
     }
     return { statusCode: 202 };
   } else {
-    console.warn(
-      `[event/subscription] Unknown event type: ${(eventPayload as BaseEventPayload).type}`
-    );
+    logger.warn(`Unknown event type: ${(eventPayload as BaseEventPayload).type}`);
     return { statusCode: 204 };
   }
 };

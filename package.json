@@ -50,6 +50,8 @@
   "dependencies": {
     "@aws-sdk/client-lambda": "^3.449.0",
     "@aws-sdk/client-s3": "^3.445.0",
-    "@aws-sdk/client-sqs": "^3.447.0"
+    "@aws-sdk/client-sqs": "^3.447.0",
+    "date-fns": "^3.0.6",
+    "date-fns-tz": "^2.0.0"
   }
 }

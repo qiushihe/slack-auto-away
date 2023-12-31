@@ -28,8 +28,15 @@ export const getUserData = async (
     userId
   );
   if (getDataFileErr) {
-    logger.error(`Error getting data file from S3: ${getDataFileErr.message}`);
-    return [getDataFileErr, null];
+    if ((getDataFileErr as S3ServiceException).name === "NoSuchKey") {
+      // Ignore the error for when the user data file doesn't exist, because in
+      // that case we're just going to return `null` anyway.
+      logger.warn(`User data file does not exist`);
+      return [null, null];
+    } else {
+      logger.error(`Error getting data file from S3: ${getDataFileErr.message}`);
+      return [getDataFileErr, null];
+    }
   }
   logger.log(`Done getting data file from S3`);
 

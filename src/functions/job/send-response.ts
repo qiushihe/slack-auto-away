@@ -1,6 +1,7 @@
 import { Handler } from "aws-lambda";
 
-import { SendResponseJob } from "~src/job/job.type";
+import { SendResponseJob } from "~src/constant/job.constant";
+import { NamespacedLogger } from "~src/util/logger.util";
 import { promisedFn } from "~src/util/promise.util";
 import { emptyResponse } from "~src/util/response.util";
 
@@ -8,10 +9,12 @@ type SendResponseEvent = {
   Job: SendResponseJob;
 };
 
-export const handler: Handler<SendResponseEvent> = async (evt) => {
-  console.log("[job/send-response] Event: ", evt);
+const logger = new NamespacedLogger("job/send-response");
 
-  console.log(`[job/send-response] Sending response ...`);
+export const handler: Handler<SendResponseEvent> = async (evt) => {
+  logger.log("Event: ", evt);
+
+  logger.log(`Sending response ...`);
   const [err] = await promisedFn(() =>
     fetch(evt.Job.responseUrl, {
       method: "POST",
@@ -22,9 +25,9 @@ export const handler: Handler<SendResponseEvent> = async (evt) => {
     })
   );
   if (err) {
-    console.error(`[job/send-response] Error sending response: ${err.message}`);
+    logger.error(`Error sending response: ${err.message}`);
   } else {
-    console.log(`[job/send-response] Done sending response`);
+    logger.log(`Done sending response`);
   }
 
   return emptyResponse();

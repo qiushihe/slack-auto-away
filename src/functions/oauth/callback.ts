@@ -1,9 +1,9 @@
-import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
+import { SQSClient } from "@aws-sdk/client-sqs";
 import { Handler } from "aws-lambda";
 
 import { JobName } from "~src/constant/job.constant";
-import { StoreAuthJob } from "~src/job/job.type";
 import { processEnvGetString } from "~src/util/env.util";
+import { invokeJobCommand } from "~src/util/job.util";
 import { promisedFn } from "~src/util/promise.util";
 import { escapeRegExp } from "~src/util/regexp.util";
 import { jsonResponse, redirectResponse } from "~src/util/response.util";
@@ -162,16 +162,9 @@ export const handler: Handler<OAuthCallbackEvent> = async (evt) => {
 
   console.log(`[oauth/callback] Enqueuing ${JobName.STORE_AUTH} job ...`);
   const [queueErr] = await promisedFn(
-    (id: string, token: string) =>
+    (userId: string, authToken: string) =>
       new SQSClient().send(
-        new SendMessageCommand({
-          QueueUrl: jobsQueueUrl,
-          MessageBody: JSON.stringify({
-            type: JobName.STORE_AUTH,
-            userId: id,
-            authToken: token
-          } as StoreAuthJob)
-        })
+        invokeJobCommand(jobsQueueUrl, JobName.STORE_AUTH, { userId, authToken })
       ),
     userId,
     userAccessToken

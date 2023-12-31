@@ -1,15 +1,10 @@
-import { SendMessageCommand, SQSClient } from "@aws-sdk/client-sqs";
+import { SQSClient } from "@aws-sdk/client-sqs";
 import { Handler } from "aws-lambda";
 
 import { JobName } from "~src/constant/job.constant";
-import {
-  CheckStatusJob,
-  ClearScheduleJob,
-  LogoutJob,
-  SendResponseJob,
-  StoreScheduleJob
-} from "~src/job/job.type";
 import { processEnvGetString } from "~src/util/env.util";
+import { invokeJobCommand } from "~src/util/job.util";
+import { NamespacedLogger } from "~src/util/logger.util";
 import { promisedFn } from "~src/util/promise.util";
 import { extractEventBody, IVerifiableEvent } from "~src/util/request.util";
 import { emptyResponse, jsonResponse } from "~src/util/response.util";
@@ -44,8 +39,10 @@ const SCHEDULE_STRING_REGEXP_24H = new RegExp(
   "i"
 );
 
+const logger = new NamespacedLogger("slash-command/default");
+
 export const handler: Handler<SlashCommandDefaultEvent> = async (evt) => {
-  console.log("[slash-command/default] Event: ", evt);
+  logger.log("Event: ", evt);
 
   const oauthStartUrl = processEnvGetString("OAUTH_START_URL");
   const jobsQueueUrl = processEnvGetString("JOBS_QUEUE_URL");
@@ -96,25 +93,19 @@ export const handler: Handler<SlashCommandDefaultEvent> = async (evt) => {
       ].join("\n")
     });
   } else if (commandWords[0] === "status") {
-    console.log(`[slash-command/default] Enqueuing ${JobName.CHECK_STATUS} job ...`);
-    const [queueErr] = await promisedFn(() =>
-      new SQSClient().send(
-        new SendMessageCommand({
-          QueueUrl: jobsQueueUrl,
-          MessageBody: JSON.stringify({
-            type: JobName.CHECK_STATUS,
-            responseUrl: commandResponseUrl,
-            userId: commandUserId
-          } as CheckStatusJob)
-        })
-      )
+    logger.log(`Enqueuing ${JobName.CHECK_STATUS} job ...`);
+    const [queueErr] = await promisedFn(
+      (responseUrl: string, userId: string) =>
+        new SQSClient().send(
+          invokeJobCommand(jobsQueueUrl, JobName.CHECK_STATUS, { responseUrl, userId })
+        ),
+      commandResponseUrl,
+      commandUserId
     );
     if (queueErr) {
-      console.error(
-        `[slash-command/default] Error enqueuing ${JobName.CHECK_STATUS} job: ${queueErr.message}`
-      );
+      logger.error(`Error enqueuing ${JobName.CHECK_STATUS} job: ${queueErr.message}`);
     } else {
-      console.log(`[slash-command/default] Done enqueuing ${JobName.CHECK_STATUS} job`);
+      logger.log(`Done enqueuing ${JobName.CHECK_STATUS} job`);
     }
 
     return jsonResponse({
@@ -161,27 +152,26 @@ export const handler: Handler<SlashCommandDefaultEvent> = async (evt) => {
       const [fromTime24Str, fromTime12Str] = stringifyNormalizedTime(fromHour24);
       const [toTime24Str, toTime12Str] = stringifyNormalizedTime(toHour24);
 
-      console.log(`[slash-command/default] Enqueuing ${JobName.STORE_SCHEDULE} job ...`);
-      const [queueErr] = await promisedFn(() =>
-        new SQSClient().send(
-          new SendMessageCommand({
-            QueueUrl: jobsQueueUrl,
-            MessageBody: JSON.stringify({
-              type: JobName.STORE_SCHEDULE,
-              responseUrl: commandResponseUrl,
-              userId: commandUserId,
-              fromHour24,
-              toHour24
-            } as StoreScheduleJob)
-          })
-        )
+      logger.log(`Enqueuing ${JobName.STORE_SCHEDULE} job ...`);
+      const [queueErr] = await promisedFn(
+        (responseUrl: string, userId: string, from: number, to: number) =>
+          new SQSClient().send(
+            invokeJobCommand(jobsQueueUrl, JobName.STORE_SCHEDULE, {
+              responseUrl,
+              userId,
+              fromHour24: from,
+              toHour24: to
+            })
+          ),
+        commandResponseUrl,
+        commandUserId,
+        fromHour24,
+        toHour24
       );
       if (queueErr) {
-        console.error(
-          `[slash-command/default] Error enqueuing ${JobName.STORE_SCHEDULE} job: ${queueErr.message}`
-        );
+        logger.error(`Error enqueuing ${JobName.STORE_SCHEDULE} job: ${queueErr.message}`);
       } else {
-        console.log(`[slash-command/default] Done enqueuing ${JobName.STORE_SCHEDULE} job`);
+        logger.log(`Done enqueuing ${JobName.STORE_SCHEDULE} job`);
       }
 
       return jsonResponse({
@@ -200,25 +190,19 @@ export const handler: Handler<SlashCommandDefaultEvent> = async (evt) => {
       });
     }
   } else if (commandWords[0] === "off") {
-    console.log(`[slash-command/default] Enqueuing ${JobName.CLEAR_SCHEDULE} job ...`);
-    const [queueErr] = await promisedFn(() =>
-      new SQSClient().send(
-        new SendMessageCommand({
-          QueueUrl: jobsQueueUrl,
-          MessageBody: JSON.stringify({
-            type: JobName.CLEAR_SCHEDULE,
-            responseUrl: commandResponseUrl,
-            userId: commandUserId
-          } as ClearScheduleJob)
-        })
-      )
+    logger.log(`Enqueuing ${JobName.CLEAR_SCHEDULE} job ...`);
+    const [queueErr] = await promisedFn(
+      (responseUrl: string, userId: string) =>
+        new SQSClient().send(
+          invokeJobCommand(jobsQueueUrl, JobName.CLEAR_SCHEDULE, { responseUrl, userId })
+        ),
+      commandResponseUrl,
+      commandUserId
     );
     if (queueErr) {
-      console.error(
-        `[slash-command/default] Error enqueuing ${JobName.CLEAR_SCHEDULE} job: ${queueErr.message}`
-      );
+      logger.error(`Error enqueuing ${JobName.CLEAR_SCHEDULE} job: ${queueErr.message}`);
     } else {
-      console.log(`[slash-command/default] Done enqueuing ${JobName.CLEAR_SCHEDULE} job`);
+      logger.log(`Done enqueuing ${JobName.CLEAR_SCHEDULE} job`);
     }
 
     return jsonResponse({
@@ -226,25 +210,19 @@ export const handler: Handler<SlashCommandDefaultEvent> = async (evt) => {
       text: "Clearing schedule ..."
     });
   } else if (commandWords[0] === "logout") {
-    console.log(`[slash-command/default] Enqueuing ${JobName.LOGOUT} job ...`);
-    const [queueErr] = await promisedFn(() =>
-      new SQSClient().send(
-        new SendMessageCommand({
-          QueueUrl: jobsQueueUrl,
-          MessageBody: JSON.stringify({
-            type: JobName.LOGOUT,
-            responseUrl: commandResponseUrl,
-            userId: commandUserId
-          } as LogoutJob)
-        })
-      )
+    logger.log(`Enqueuing ${JobName.LOGOUT} job ...`);
+    const [queueErr] = await promisedFn(
+      (responseUrl: string, userId: string) =>
+        new SQSClient().send(
+          invokeJobCommand(jobsQueueUrl, JobName.LOGOUT, { responseUrl, userId })
+        ),
+      commandResponseUrl,
+      commandUserId
     );
     if (queueErr) {
-      console.error(
-        `[slash-command/default] Error enqueuing ${JobName.LOGOUT} job: ${queueErr.message}`
-      );
+      logger.error(`Error enqueuing ${JobName.LOGOUT} job: ${queueErr.message}`);
     } else {
-      console.log(`[slash-command/default] Done enqueuing ${JobName.LOGOUT} job`);
+      logger.log(`Done enqueuing ${JobName.LOGOUT} job`);
     }
 
     return jsonResponse({
@@ -264,31 +242,25 @@ export const handler: Handler<SlashCommandDefaultEvent> = async (evt) => {
       ].join("\n")
     });
   } else if (commandWords[0] === "riven") {
-    console.log(`[slash-command/default] Enqueuing ${JobName.SEND_RESPONSE} job ...`);
-    const [queueErr] = await promisedFn(() =>
-      new SQSClient().send(
-        new SendMessageCommand({
-          QueueUrl: jobsQueueUrl,
-          MessageBody: JSON.stringify({
-            type: JobName.SEND_RESPONSE,
-            responseUrl: commandResponseUrl,
-            responseMessage: [
-              "For generations, the Dreaming City housed one of the Awoken's most closely guarded secrets.",
-              "She is known as Riven — Riven of a Thousand Voices. The last known Ahamkara.",
-              "She has been Taken. And her death is your calling."
-            ]
-              .join(" ")
-              .toUpperCase()
-          } as SendResponseJob)
-        })
-      )
+    logger.log(`Enqueuing ${JobName.SEND_RESPONSE} job ...`);
+    const [queueErr] = await promisedFn(
+      (responseUrl: string, responseMessage: string) =>
+        new SQSClient().send(
+          invokeJobCommand(jobsQueueUrl, JobName.SEND_RESPONSE, { responseUrl, responseMessage })
+        ),
+      commandResponseUrl,
+      [
+        "For generations, the Dreaming City housed one of the Awoken's most closely guarded secrets.",
+        "She is known as Riven — Riven of a Thousand Voices. The last known Ahamkara.",
+        "She has been Taken. And her death is your calling."
+      ]
+        .join(" ")
+        .toUpperCase()
     );
     if (queueErr) {
-      console.error(
-        `[slash-command/default] Error enqueuing ${JobName.SEND_RESPONSE} job: ${queueErr.message}`
-      );
+      logger.error(`Error enqueuing ${JobName.SEND_RESPONSE} job: ${queueErr.message}`);
     } else {
-      console.log(`[slash-command/default] Done enqueuing ${JobName.SEND_RESPONSE} job`);
+      logger.log(`Done enqueuing ${JobName.SEND_RESPONSE} job`);
     }
 
     return emptyResponse();

@@ -1,8 +1,9 @@
 import { S3Client } from "@aws-sdk/client-s3";
 import { Handler } from "aws-lambda";
+import getTimezoneOffset from "date-fns-tz/getTimezoneOffset";
 
+import { CheckStatusJob } from "~src/constant/job.constant";
 import { IndexName } from "~src/constant/user-data.constant";
-import { CheckStatusJob } from "~src/job/job.type";
 import { processEnvGetString } from "~src/util/env.util";
 import { NamespacedLogger } from "~src/util/logger.util";
 import { promisedFn } from "~src/util/promise.util";
@@ -22,9 +23,7 @@ export const handler: Handler<CheckStatusEvent> = async (evt) => {
 
   const dataBucketName = processEnvGetString("DATA_BUCKET_NAME");
 
-  let authStatus: string;
-  let timezoneStatus: string;
-  let scheduleStatus: string;
+  const statusMessages: string[] = [];
 
   logger.log(`Checking user auth index ...`);
   const [hasAuthErr, hasAuth] = await isUserIdIndexed(
@@ -36,38 +35,51 @@ export const handler: Handler<CheckStatusEvent> = async (evt) => {
   );
   if (hasAuthErr) {
     logger.error(`Error checking user index ${IndexName.HAS_AUTH}: ${hasAuthErr.message}`);
-    authStatus = "error";
+    statusMessages.push("Authentication: error");
   } else {
     logger.log(`Done checking user auth index`);
-    authStatus = hasAuth ? "authenticated" : "not authenticated";
-  }
+    statusMessages.push(`Authentication: ${hasAuth ? "authenticated" : "not authenticated"}`);
 
-  logger.log(`Getting user data ...`);
-  const [userDataErr, userData] = await getUserData(
-    logger,
-    new S3Client(),
-    dataBucketName,
-    evt.Job.userId
-  );
-  if (userDataErr) {
-    logger.error(`Error getting user data: ${userDataErr.message}`);
-    timezoneStatus = "error";
-    scheduleStatus = "error";
-  } else {
-    logger.log(`Done getting user data`);
+    if (hasAuth) {
+      logger.log(`Getting user data ...`);
+      const [userDataErr, userData] = await getUserData(
+        logger,
+        new S3Client(),
+        dataBucketName,
+        evt.Job.userId
+      );
+      if (userDataErr) {
+        logger.error(`Error getting user data: ${userDataErr.message}`);
+        statusMessages.push("Timezone: error");
+        statusMessages.push("Schedule: error");
+      } else {
+        logger.log(`Done getting user data`);
 
-    if (!!userData?.timezoneName && userData.timezoneName.trim().length > 0) {
-      timezoneStatus = userData.timezoneName;
-    } else {
-      timezoneStatus = "missing";
-    }
+        if (!!userData?.timezoneName && userData.timezoneName.trim().length > 0) {
+          const offset = getTimezoneOffset(userData.timezoneName, new Date()) / 1000 / 60 / 60;
+          const prefix = offset < 0 ? "-" : "";
+          const hours = `${Math.abs(Math.trunc(offset))}`.padStart(2, "0");
+          const minutes = `${
+            Math.abs(offset - Math.abs(Math.trunc(offset)) * (offset < 0 ? -1 : 1)) * 60
+          }`.padStart(2, "0");
 
-    if (userData?.scheduleFromHour24 && userData.scheduleToHour24) {
-      const [fromTime24Str, fromTime12Str] = stringifyNormalizedTime(userData.scheduleFromHour24);
-      const [toTime24Str, toTime12Str] = stringifyNormalizedTime(userData.scheduleToHour24);
-      scheduleStatus = `from ${fromTime12Str} (${fromTime24Str}) to ${toTime12Str} (${toTime24Str})`;
-    } else {
-      scheduleStatus = "off";
+          statusMessages.push(`Timezone: ${userData.timezoneName} (${prefix}${hours}${minutes})`);
+        } else {
+          statusMessages.push("Timezone: missing");
+        }
+
+        if (userData?.scheduleFromHour24 && userData.scheduleToHour24) {
+          const [fromTime24Str, fromTime12Str] = stringifyNormalizedTime(
+            userData.scheduleFromHour24
+          );
+          const [toTime24Str, toTime12Str] = stringifyNormalizedTime(userData.scheduleToHour24);
+          statusMessages.push(
+            `Schedule: from ${fromTime12Str} (${fromTime24Str}) to ${toTime12Str} (${toTime24Str})`
+          );
+        } else {
+          statusMessages.push("Schedule: off");
+        }
+      }
     }
   }
 
@@ -77,12 +89,7 @@ export const handler: Handler<CheckStatusEvent> = async (evt) => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        text: [
-          "Status:",
-          ` • Authentication: ${authStatus}`,
-          ` • Timezone: ${timezoneStatus}`,
-          ` • Schedule: ${scheduleStatus}`
-        ].join("\n")
+        text: ["Status:", ...statusMessages.map((message) => ` • ${message}`)].join("\n")
       })
     })
   );
