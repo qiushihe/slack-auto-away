@@ -61,13 +61,7 @@ export const handler: Handler<EventSubscriptionEvent> = async (evt) => {
 
   const loggableUserIds = (loggableUserIdsString || "").trim().split(",");
 
-  const eventPayload = extractEventBody(
-    "event/subscription",
-    false,
-    evt,
-    "v0",
-    signingSecret
-  ) as EventPayload;
+  const eventPayload = extractEventBody(logger, false, evt, "v0", signingSecret) as EventPayload;
 
   if (eventPayload.type === EventType.UrlVerification) {
     logger.log("Received URL Verification event");

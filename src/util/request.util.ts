@@ -1,19 +1,22 @@
 import crypto from "crypto";
 import querystring from "querystring";
 
-export const verifyEventSignature = (
-  logPrefix: string,
+import { NamespacedLogger } from "~src/util/logger.util";
+
+const verifyEventSignature = (
   version: string,
   secret: string,
   body: string,
   timestamp: number,
   signature: string
-) => {
+): Error | null => {
   const hmac = crypto.createHmac("sha256", secret);
   hmac.update(`${version}:${timestamp}:${body}`);
 
   if (`${version}=${hmac.digest("hex")}` !== signature) {
-    throw new Error(`[${logPrefix}] Invalid request signature`);
+    return new Error("Invalid request signature");
+  } else {
+    return null;
   }
 };
 
@@ -24,7 +27,7 @@ export interface IVerifiableEvent {
 }
 
 export const extractEventBody = <TEvent extends IVerifiableEvent = IVerifiableEvent>(
-  logPrefix: string,
+  logger: NamespacedLogger,
   logBody: boolean,
   evt: TEvent,
   signingVersion: string,
@@ -41,27 +44,29 @@ export const extractEventBody = <TEvent extends IVerifiableEvent = IVerifiableEv
         : (evt.body as string);
 
       if (logBody) {
-        console.log(`[${logPrefix}] Got JSON encoded command body: ${rawBody}`);
+        logger.log(`Got JSON encoded command body: ${rawBody}`);
       } else {
-        console.log(`[${logPrefix}] Got JSON encoded command body`);
+        logger.log(`Got JSON encoded command body`);
       }
 
-      verifyEventSignature(
-        logPrefix,
+      const signatureErr = verifyEventSignature(
         signingVersion,
         signingSecret,
         rawBody,
         requestTimestamp,
         signature
       );
+      if (signatureErr) {
+        throw signatureErr;
+      }
 
       try {
-        console.log(`[${logPrefix}] Parsing JSON encoded command body ...`);
+        logger.log(`Parsing JSON encoded command body ...`);
         const parsedBody = JSON.parse(rawBody) as Record<string, any>;
-        console.log(`[${logPrefix}] Done parsing JSON encoded command body`);
+        logger.log(`Done parsing JSON encoded command body`);
         return parsedBody;
       } catch (err) {
-        console.error(`[${logPrefix}] Error parsing JSON encoded command body: ${err.message}`);
+        logger.error(`Error parsing JSON encoded command body: ${err.message}`);
         return {};
       }
     } else {
@@ -73,31 +78,33 @@ export const extractEventBody = <TEvent extends IVerifiableEvent = IVerifiableEv
       : (evt.body as string);
 
     if (logBody) {
-      console.log(`[${logPrefix}] Got form URL encoded command body: ${rawBody}`);
+      logger.log(`Got form URL encoded command body: ${rawBody}`);
     } else {
-      console.log(`[${logPrefix}] Got form URL encoded command body`);
+      logger.log(`Got form URL encoded command body`);
     }
 
-    verifyEventSignature(
-      logPrefix,
+    const signatureErr = verifyEventSignature(
       signingVersion,
       signingSecret,
       rawBody,
       requestTimestamp,
       signature
     );
+    if (signatureErr) {
+      throw signatureErr;
+    }
 
     try {
-      console.log(`[${logPrefix}] Parsing form URL encoded command body ...`);
+      logger.log(`Parsing form URL encoded command body ...`);
       const parsedBody = querystring.parse(rawBody);
-      console.log(`[${logPrefix}] Done parsing form URL encoded command body`);
+      logger.log(`Done parsing form URL encoded command body`);
       return parsedBody;
     } catch (err) {
-      console.error(`[${logPrefix}] Error parsing form URL encoded command body: ${err.message}`);
+      logger.error(`Error parsing form URL encoded command body: ${err.message}`);
       return {};
     }
   } else {
-    console.error(`[${logPrefix}] Unknown content-type: ${contentType}`);
+    logger.error(`Unknown content-type: ${contentType}`);
     return {};
   }
 };

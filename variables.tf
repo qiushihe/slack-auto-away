@@ -33,6 +33,12 @@ variable "aws_s3_data_bucket_name" {
   default     = "slack-auto-away-data"
 }
 
+variable "slack_api_url_prefix" {
+  description = "Slack API's URL prefix"
+  type        = string
+  default     = "https://slack.com/api"
+}
+
 variable "slack_app_client_id" {
   description = "Slack App's Client ID"
   type        = string

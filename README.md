@@ -18,6 +18,8 @@ Slack Apps
   * Request URL: <the `slash-command-default` Lambda function URL>
   * Short Description: Configure auto-away
   * Usage Hint: [help][from 9am to 5pm]
+* Interactivity:
+  * Request URL: <the `interactivity-default` Lambda function URL>
 * Event subscription:
   * Request URL: <the `event-subscription` Lambda function URL>
   * Subscribe to events on behalf of users:

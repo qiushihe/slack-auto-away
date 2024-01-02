@@ -4,6 +4,7 @@ locals {
   oauth_start_url           = format("%s/oauth-start", module.lambda_gateway.invocation_url)
   oauth_callback_url        = format("%s/oauth-callback", module.lambda_gateway.invocation_url)
   slash_command_default_url = format("%s/slash-command-default", module.lambda_gateway.invocation_url)
+  interactivity_default_url = format("%s/interactivity-default", module.lambda_gateway.invocation_url)
   event_subscription_url    = format("%s/event-subscription", module.lambda_gateway.invocation_url)
   public_asset_urls         = [for key in module.public_assets.asset_keys : "https://${module.assets_bucket.bucket_name}.s3.amazonaws.com/${key}"]
 }
@@ -181,9 +182,40 @@ module "slash_command_functions_default" {
   source_code_hash = module.slash_command_functions.archive_base64sha256
 
   environment_variables = {
-    OAUTH_START_URL = local.oauth_start_url
-    JOBS_QUEUE_URL  = aws_sqs_queue.jobs.url
-    SIGNING_SECRET  = var.slack_app_signing_secret
+    OAUTH_START_URL      = local.oauth_start_url
+    JOBS_QUEUE_URL       = aws_sqs_queue.jobs.url
+    SLACK_API_URL_PREFIX = var.slack_api_url_prefix
+    SIGNING_SECRET       = var.slack_app_signing_secret
+    DATA_BUCKET_NAME     = module.data_bucket.bucket_name
+  }
+
+  role_arn      = module.lambda_role.iam_role_arn
+  execution_arn = module.lambda_gateway.gateway_execution_arn
+  api_id        = module.lambda_gateway.gateway_api_id
+}
+
+module "interactivity_functions" {
+  source          = "./modules/aws-lambda-functions"
+  bucket_id       = module.lambda_bucket.bucket_id
+  source_dir      = "${abspath(path.module)}/.build/src/functions/interactivity"
+  output_dir      = "${abspath(path.module)}/.archives"
+  output_filename = "interactivity-functions.zip"
+}
+
+module "interactivity_functions_default" {
+  source           = "./modules/aws-lambda-function"
+  function_name    = "InteractivityDefault"
+  function_handler = "default"
+  function_method  = "POST"
+  function_path    = "/interactivity-default"
+
+  s3_bucket        = module.interactivity_functions.archive_bucket
+  s3_key           = module.interactivity_functions.archive_key
+  source_code_hash = module.interactivity_functions.archive_base64sha256
+
+  environment_variables = {
+    JOBS_QUEUE_URL = aws_sqs_queue.jobs.url
+    SIGNING_SECRET = var.slack_app_signing_secret
   }
 
   role_arn      = module.lambda_role.iam_role_arn

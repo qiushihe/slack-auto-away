@@ -14,6 +14,10 @@ output "slash_command_default_url" {
   value = local.slash_command_default_url
 }
 
+output "interactivity_default_url" {
+  value = local.interactivity_default_url
+}
+
 output "event_subscription_url" {
   value = local.event_subscription_url
 }
