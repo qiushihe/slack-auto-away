@@ -379,8 +379,23 @@ export type VideoBlock = AbstractBlock<"video"> & {
 type AbstractView<TType extends string, TBlock = never> = {
   type: TType;
   blocks: TBlock[];
+
+  /**
+   * A string that will be in the event sent back to interactivity handler endpoint.
+   * Max length of 3000 characters.
+   */
   private_metadata?: string;
+
+  /**
+   * An identifier to recognize interactions and submissions of this particular view.
+   * Do not use this attribute to store sensitive information: use `private_metadata` instead.
+   * Max length of 255 characters.
+   */
   callback_id?: string;
+
+  /**
+   * A custom identifier that must be unique for all views on a per-team basis.
+   */
   external_id?: string;
 };
 

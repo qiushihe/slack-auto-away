@@ -4,7 +4,7 @@ import { Command, CommandHandler } from "~src/constant/command.constant";
 import { EventPayload } from "~src/constant/event.constant";
 import { processEnvGetString } from "~src/util/env.util";
 import { NamespacedLogger } from "~src/util/logger.util";
-import { extractEventBody, IVerifiableEvent } from "~src/util/request.util";
+import { extractGenericEventBody, IVerifiableEvent } from "~src/util/request.util";
 import { jsonResponse } from "~src/util/response.util";
 
 import { command as handleAuthCommand } from "./command/auth.cmd";
@@ -42,7 +42,13 @@ export const handler: Handler<SlashCommandDefaultEvent> = async (evt) => {
   const signingSecret = processEnvGetString("SIGNING_SECRET");
   const dataBucketName = processEnvGetString("DATA_BUCKET_NAME");
 
-  const evtPayload = extractEventBody(logger, true, evt, "v0", signingSecret) as EventPayload;
+  const evtPayload = extractGenericEventBody(
+    logger,
+    true,
+    evt,
+    "v0",
+    signingSecret
+  ) as EventPayload;
 
   const commandName = `${evtPayload.command || ""}`.trim();
   const commandText = `${evtPayload.text || ""}`.trim();

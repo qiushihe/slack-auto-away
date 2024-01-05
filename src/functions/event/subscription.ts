@@ -6,7 +6,7 @@ import { processEnvGetString } from "~src/util/env.util";
 import { invokeJobCommand } from "~src/util/job.util";
 import { NamespacedLogger } from "~src/util/logger.util";
 import { promisedFn } from "~src/util/promise.util";
-import { extractEventBody, IVerifiableEvent } from "~src/util/request.util";
+import { extractGenericEventBody, IVerifiableEvent } from "~src/util/request.util";
 
 interface EventSubscriptionEvent extends IVerifiableEvent {}
 
@@ -61,7 +61,13 @@ export const handler: Handler<EventSubscriptionEvent> = async (evt) => {
 
   const loggableUserIds = (loggableUserIdsString || "").trim().split(",");
 
-  const eventPayload = extractEventBody(logger, false, evt, "v0", signingSecret) as EventPayload;
+  const eventPayload = extractGenericEventBody(
+    logger,
+    false,
+    evt,
+    "v0",
+    signingSecret
+  ) as EventPayload;
 
   if (eventPayload.type === EventType.UrlVerification) {
     logger.log("Received URL Verification event");

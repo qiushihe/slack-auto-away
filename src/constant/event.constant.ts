@@ -1,3 +1,5 @@
+import { BlockActionPayload, ViewSubmissionPayload } from "~src/view/payload.type";
+
 export type EventPayload = Record<
   | "token"
   | "team_id"
@@ -14,3 +16,7 @@ export type EventPayload = Record<
   | "trigger_id",
   any
 >;
+
+export type InteractivityEventPayload = {
+  payload: BlockActionPayload | ViewSubmissionPayload;
+};

@@ -4,6 +4,7 @@ export const testModalView = (): ModalView => {
   return {
     type: "modal",
     callback_id: "modal-identifier",
+    private_metadata: JSON.stringify({ test: 42, ohHai: "lawl" }),
     title: {
       type: "plain_text",
       text: "Test Modal Please Ignore",
