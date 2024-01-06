@@ -1,3 +1,5 @@
+import { format as formatDate, parse as parseDate } from "date-fns";
+
 import { ModalView } from "~src/view/view.type";
 
 type ScheduleModalViewOptions = {
@@ -5,6 +7,16 @@ type ScheduleModalViewOptions = {
   showSaturdayTimePickers?: boolean;
   disableSundaySchedule?: boolean;
   showSundayTimePickers?: boolean;
+
+  /**
+   * An array of exception date strings.
+   * Individual date strings must be in the format of `"YYYY-MM-DD"`.
+   */
+  exceptionDates?: string[];
+};
+
+export type ScheduleModalViewMetadata = {
+  exceptionDates?: string[];
 };
 
 const scheduleLabeler = (options?: ScheduleModalViewOptions) => {
@@ -27,8 +39,13 @@ const scheduleLabeler = (options?: ScheduleModalViewOptions) => {
 export const scheduleModalView = (options?: ScheduleModalViewOptions): ModalView => {
   const getDefaultScheduleLabel = scheduleLabeler(options);
 
+  const privateMetadata: ScheduleModalViewMetadata = {
+    exceptionDates: options?.exceptionDates || []
+  };
+
   return {
     type: "modal",
+    private_metadata: JSON.stringify(privateMetadata),
     title: { type: "plain_text", text: "Auto Away Schedule" },
     blocks: [
       { type: "header", text: { type: "plain_text", text: "Scheduled Auto Away Time" } },
@@ -131,7 +148,66 @@ export const scheduleModalView = (options?: ScheduleModalViewOptions): ModalView
               accessory: { type: "timepicker", action_id: "sunday-time-auto" }
             } as const
           ]
-        : [])
+        : []),
+      { type: "header", text: { type: "plain_text", text: "Exceptions and Pause Updates" } },
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: "To skip status updates on specific dates, use the form below:"
+        }
+      },
+      ...(options?.exceptionDates || []).map(
+        (exceptionDate) =>
+          ({
+            type: "section",
+            block_id: `section-exception-date-${exceptionDate}`,
+            text: {
+              type: "mrkdwn",
+              text: formatDate(parseDate(exceptionDate, "yyyy-MM-dd", new Date()), "MMMM do, yyyy")
+            },
+            accessory: {
+              type: "button",
+              action_id: `remove-exception-date-${exceptionDate}`,
+              text: { type: "plain_text", text: "Remove" }
+            }
+          }) as const
+      ),
+      {
+        type: "actions",
+        block_id: "section-add-exception-date",
+        elements: [
+          { type: "datepicker", action_id: "new-exception-date" },
+          {
+            type: "button",
+            action_id: "add-exception-date",
+            text: { type: "plain_text", text: "Add" }
+          }
+        ]
+      },
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: "To indefinitely pause status updates, check the checkbox below:"
+        }
+      },
+      {
+        type: "actions",
+        block_id: "section-pause-updates",
+        elements: [
+          {
+            type: "checkboxes",
+            action_id: "pause-updates",
+            options: [
+              {
+                text: { type: "plain_text", text: "Pause status updates" },
+                value: "true"
+              }
+            ]
+          }
+        ]
+      }
     ],
     close: { type: "plain_text", text: "Cancel" },
     submit: { type: "plain_text", text: "Submit" }

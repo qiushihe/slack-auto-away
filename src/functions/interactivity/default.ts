@@ -2,6 +2,7 @@ import { S3Client } from "@aws-sdk/client-s3";
 import { Handler } from "aws-lambda";
 
 import { InteractivityEventPayload, InteractivityPayload } from "~src/constant/event.constant";
+import { arrayUnique } from "~src/util/array.util";
 import { processEnvGetString } from "~src/util/env.util";
 import { NamespacedLogger } from "~src/util/logger.util";
 import { promisedFn } from "~src/util/promise.util";
@@ -9,11 +10,17 @@ import { eventBodyExtractor, IVerifiableEvent } from "~src/util/request.util";
 import { emptyResponse } from "~src/util/response.util";
 import { getUserData } from "~src/util/user-data.util";
 import { State as StatePayload } from "~src/view/payload.type";
-import { scheduleModalView } from "~src/view/schedule.view";
+import { scheduleModalView, ScheduleModalViewMetadata } from "~src/view/schedule.view";
 
 interface InteractivityDefaultEvent extends IVerifiableEvent {}
 
 type RecordValues<T> = T[keyof T];
+
+const DATE_STRING_REGEXP = new RegExp("^\\d\\d\\d\\d-\\d\\d-\\d\\d$");
+
+const REMOVE_EXCEPTION_DATE_ACTION_ID_REGEXP = new RegExp(
+  "^remove-exception-date-(\\d\\d\\d\\d-\\d\\d-\\d\\d)$"
+);
 
 const logger = new NamespacedLogger("interactivity/default");
 
@@ -56,6 +63,14 @@ export const handler: Handler<InteractivityDefaultEvent> = async (evt) => {
     return emptyResponse();
   }
 
+  const [privateMetadataErr, privateMetadata] = await promisedFn<ScheduleModalViewMetadata>(() =>
+    JSON.parse(interactivityPayload.view.private_metadata || "{}")
+  );
+  if (privateMetadataErr) {
+    logger.error(`Unable to parse private metadata: ${privateMetadataErr.message}`);
+    return emptyResponse();
+  }
+
   const allInputs = Object.values(interactivityPayload.view.state.values).reduce(
     (acc, blocksInputs) => ({
       ...acc,
@@ -63,6 +78,35 @@ export const handler: Handler<InteractivityDefaultEvent> = async (evt) => {
     }),
     {} as Record<string, RecordValues<RecordValues<StatePayload["values"]>>>
   );
+
+  let exceptionDates = privateMetadata?.exceptionDates || [];
+  const addExceptionDateClicked = !!interactivityPayload.actions.find(
+    (action) => action.type === "button" && action.action_id === "add-exception-date"
+  );
+  const newExceptionDateInput = allInputs["new-exception-date"];
+  if (
+    addExceptionDateClicked &&
+    newExceptionDateInput &&
+    newExceptionDateInput.type === "datepicker" &&
+    newExceptionDateInput.selected_date &&
+    newExceptionDateInput.selected_date.match(DATE_STRING_REGEXP)
+  ) {
+    exceptionDates.push(newExceptionDateInput.selected_date);
+  }
+  const removeExceptionDateAction = interactivityPayload.actions.find(
+    (action) =>
+      action.type === "button" &&
+      (action.action_id || "").match(REMOVE_EXCEPTION_DATE_ACTION_ID_REGEXP)
+  );
+  if (removeExceptionDateAction) {
+    const actionIdMatch = removeExceptionDateAction.action_id.match(
+      REMOVE_EXCEPTION_DATE_ACTION_ID_REGEXP
+    );
+    const dateString = actionIdMatch?.[1];
+    if (dateString && dateString.match(DATE_STRING_REGEXP)) {
+      exceptionDates = exceptionDates.filter((exceptionDate) => exceptionDate !== dateString);
+    }
+  }
 
   let disableSaturdaySchedule: boolean = false;
   let differentSaturdaySchedule: boolean = false;
@@ -124,7 +168,8 @@ export const handler: Handler<InteractivityDefaultEvent> = async (evt) => {
           disableSaturdaySchedule: disableSaturdaySchedule,
           showSaturdayTimePickers: differentSaturdaySchedule,
           disableSundaySchedule: disableSundaySchedule,
-          showSundayTimePickers: differentSundaySchedule
+          showSundayTimePickers: differentSundaySchedule,
+          exceptionDates: arrayUnique(exceptionDates)
         })
       })
     })
