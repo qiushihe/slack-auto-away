@@ -1,4 +1,4 @@
-export const promisedFn = async <TFnReturn, TFnArgs>(
+export const promisedFn = async <TFnReturn = unknown, TFnArgs = never>(
   fn: (...args: TFnArgs[]) => Promise<TFnReturn>,
   ...args: Parameters<typeof fn>
 ): Promise<[Error, null] | [null, TFnReturn]> => {

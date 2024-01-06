@@ -214,8 +214,9 @@ module "interactivity_functions_default" {
   source_code_hash = module.interactivity_functions.archive_base64sha256
 
   environment_variables = {
-    JOBS_QUEUE_URL = aws_sqs_queue.jobs.url
-    SIGNING_SECRET = var.slack_app_signing_secret
+    DATA_BUCKET_NAME     = module.data_bucket.bucket_name
+    SLACK_API_URL_PREFIX = var.slack_api_url_prefix
+    SIGNING_SECRET       = var.slack_app_signing_secret
   }
 
   role_arn      = module.lambda_role.iam_role_arn

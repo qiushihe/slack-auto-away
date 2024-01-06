@@ -18,5 +18,7 @@ export type EventPayload = Record<
 >;
 
 export type InteractivityEventPayload = {
-  payload: BlockActionPayload | ViewSubmissionPayload;
+  payload: string;
 };
+
+export type InteractivityPayload = BlockActionPayload | ViewSubmissionPayload;

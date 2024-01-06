@@ -82,14 +82,23 @@ export type CheckboxesElement = AbstractActionElement<"checkboxes"> & {
 };
 
 export type DatePickerElement = AbstractActionElement<"datepicker"> & {
+  /**
+   * In the format of `"YYYY-MM-DD"`
+   */
   initial_date?: string;
+
   confirm?: ConfirmationDialogObject;
   focus_on_load?: boolean;
   placeholder?: TextObject<"plain_text">;
 };
 
 export type DatetimePickerElement = AbstractActionElement<"datetimepicker"> & {
+  /**
+   * This should be in the format of 10 digits, for example 1628633820 represents the date and
+   * time August 10th, 2021 at 03:17pm PST.
+   */
   initial_date_time?: number;
+
   confirm?: ConfirmationDialogObject;
   focus_on_load?: boolean;
 };
@@ -130,7 +139,7 @@ export type ExternalMultiSelectMenuElement = AbstractActionElement<"multi_extern
   placeholder?: TextObject<"plain_text">;
 };
 
-export type UsersMultiSelectMenuElement = AbstractActionElement<"multi_external_select"> & {
+export type UsersMultiSelectMenuElement = AbstractActionElement<"multi_users_select"> & {
   initial_users?: string[];
   confirm?: ConfirmationDialogObject;
   max_selected_items?: number;
@@ -166,7 +175,12 @@ export type MultiSelectMenuElement =
 
 export type NumberInputElement = AbstractActionElement<"number_input"> & {
   is_decimal_allowed: boolean;
+
+  /**
+   * The initial value in the plain-text input when it is loaded.
+   */
   initial_value?: string;
+
   min_value?: string;
   max_value?: string;
   dispatch_action_config?: DispatchActionConfigurationObject;
@@ -253,7 +267,13 @@ export type SelectMenuElement =
   | ChannelsSelectMenuElement;
 
 export type TimePickerElement = AbstractActionElement<"timepicker"> & {
+  /**
+   * The initial time that is selected when the element is loaded. This should be in the format
+   * HH:mm, where HH is the 24-hour format of an hour (00 to 23) and mm is minutes with leading
+   * zeros (00 to 59), for example 22:25 for 10:25pm.
+   */
   initial_time?: string;
+
   confirm?: ConfirmationDialogObject;
   focus_on_load?: boolean;
   placeholder?: TextObject<"plain_text">;
@@ -285,6 +305,10 @@ type AbstractBlock<TType extends string> = {
 
 type AbstractElementsBlock<TType extends string, TElement = never> = AbstractBlock<TType> & {
   elements: TElement[];
+};
+
+type AbstractElementBlock<TType extends string, TElement = never> = AbstractBlock<TType> & {
+  element: TElement;
 };
 
 export type ActionBlock = AbstractElementsBlock<
@@ -320,7 +344,7 @@ export type ImageBlock = AbstractBlock<"image"> & {
   title?: TextObject<"plain_text">;
 };
 
-export type InputBlock = AbstractElementsBlock<
+export type InputBlock = AbstractElementBlock<
   "input",
   | CheckboxesElement
   | DatePickerElement
