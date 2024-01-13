@@ -36,7 +36,7 @@ const scheduleLabeler = (options?: ScheduleModalViewOptions) => {
   };
 };
 
-export const scheduleModalView = (options?: ScheduleModalViewOptions): ModalView => {
+export const modalView = (options?: ScheduleModalViewOptions): ModalView => {
   const getDefaultScheduleLabel = scheduleLabeler(options);
 
   const privateMetadata: ScheduleModalViewMetadata = {
@@ -45,6 +45,7 @@ export const scheduleModalView = (options?: ScheduleModalViewOptions): ModalView
 
   return {
     type: "modal",
+    callback_id: "schedule-view",
     private_metadata: JSON.stringify(privateMetadata),
     title: { type: "plain_text", text: "Auto Away Schedule" },
     blocks: [

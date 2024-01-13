@@ -4,7 +4,7 @@ import { CommandHandler } from "~src/constant/command.constant";
 import { promisedFn } from "~src/util/promise.util";
 import { emptyResponse, jsonResponse } from "~src/util/response.util";
 import { getUserData } from "~src/util/user-data.util";
-import { scheduleModalView } from "~src/view/schedule.view";
+import { modalView } from "~src/view/schedule/view";
 
 type ScheduleCmdEnvVars = {
   slackApiUrlPrefix: string;
@@ -54,7 +54,7 @@ export const command: CommandHandler<ScheduleCmdEnvVars> = async (logger, cmd) =
       },
       body: JSON.stringify({
         trigger_id: cmd.payload.trigger_id,
-        view: scheduleModalView()
+        view: modalView()
       })
     })
   );
