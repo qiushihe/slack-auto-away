@@ -1,6 +1,7 @@
 import { S3Client } from "@aws-sdk/client-s3";
 
 import { CommandHandler } from "~src/constant/command.constant";
+import { UserSchedule } from "~src/constant/user-data.constant";
 import { promisedFn } from "~src/util/promise.util";
 import { emptyResponse, jsonResponse } from "~src/util/response.util";
 import { getUserData } from "~src/util/user-data.util";
@@ -44,8 +45,23 @@ export const command: CommandHandler<ScheduleCmdEnvVars> = async (logger, cmd) =
     });
   }
 
+  const scheduleData: UserSchedule = userData.schedule ?? {
+    timeAuto: "09:00",
+    timeAway: "17:00",
+    disableSaturdaySchedule: false,
+    differentSaturdaySchedule: false,
+    saturdayTimeAuto: "10:00",
+    saturdayTimeAway: "16:00",
+    disableSundaySchedule: false,
+    differentSundaySchedule: false,
+    sundayTimeAuto: "11:00",
+    sundayTimeAway: "15:00",
+    exceptionDates: [],
+    pauseUpdates: false
+  };
+
   logger.log(`Opening modal ...`);
-  const [err] = await promisedFn(() =>
+  const [err, res] = await promisedFn(() =>
     fetch(`${cmd.environmentVariable.slackApiUrlPrefix}/views.open`, {
       method: "POST",
       headers: {
@@ -54,14 +70,32 @@ export const command: CommandHandler<ScheduleCmdEnvVars> = async (logger, cmd) =
       },
       body: JSON.stringify({
         trigger_id: cmd.payload.trigger_id,
-        view: modalView()
+        view: modalView({
+          initialTimeAuto: scheduleData.timeAuto,
+          initialTimeAway: scheduleData.timeAway,
+          disableSaturdaySchedule: scheduleData.disableSaturdaySchedule,
+          showSaturdayTimePickers: scheduleData.differentSaturdaySchedule,
+          initialSaturdayTimeAuto: scheduleData.saturdayTimeAuto,
+          initialSaturdayTimeAway: scheduleData.saturdayTimeAway,
+          disableSundaySchedule: scheduleData.disableSundaySchedule,
+          showSundayTimePickers: scheduleData.differentSundaySchedule,
+          initialSundayTimeAuto: scheduleData.sundayTimeAuto,
+          initialSundayTimeAway: scheduleData.sundayTimeAway,
+          exceptionDates: scheduleData.exceptionDates,
+          pauseUpdates: scheduleData.pauseUpdates
+        })
       })
     })
   );
   if (err) {
     logger.error(`Error opening modal: ${err.message}`);
   } else {
-    logger.log(`Done opening modal`);
+    if (res) {
+      const resText = await res.text();
+      logger.log(`Done opening modal: (${res.status} / ${res.statusText}) ${resText}`);
+    } else {
+      logger.warn(`Done opening modal: Response empty`);
+    }
   }
 
   return emptyResponse();

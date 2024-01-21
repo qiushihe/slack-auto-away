@@ -76,9 +76,14 @@ export type ButtonElement = AbstractActionElement<"button"> & {
 
 export type CheckboxesElement = AbstractActionElement<"checkboxes"> & {
   options: OptionObject[];
-  initial_options?: OptionObject[];
   confirm?: ConfirmationDialogObject;
   focus_on_load?: boolean;
+
+  /**
+   * If set, this attribute must contain at least 1 value.
+   * If there is no initial options, then this attribute must not be set.
+   */
+  initial_options?: OptionObject[];
 };
 
 export type DatePickerElement = AbstractActionElement<"datepicker"> & {
@@ -123,20 +128,30 @@ export type ImageElement = AbstractElement<"image"> & {
 export type StaticMultiSelectMenuElement = AbstractActionElement<"multi_static_select"> & {
   options: OptionObject[];
   option_groups?: OptionGroupObject[];
-  initial_options?: OptionObject[];
   confirm?: ConfirmationDialogObject;
   max_selected_items?: number;
   focus_on_load?: boolean;
   placeholder?: TextObject<"plain_text">;
+
+  /**
+   * If set, this attribute must contain at least 1 value.
+   * If there is no initial options, then this attribute must not be set.
+   */
+  initial_options?: OptionObject[];
 };
 
 export type ExternalMultiSelectMenuElement = AbstractActionElement<"multi_external_select"> & {
   min_query_length?: number;
-  initial_options?: OptionObject[];
   confirm?: ConfirmationDialogObject;
   max_selected_items?: number;
   focus_on_load?: boolean;
   placeholder?: TextObject<"plain_text">;
+
+  /**
+   * If set, this attribute must contain at least 1 value.
+   * If there is no initial options, then this attribute must not be set.
+   */
+  initial_options?: OptionObject[];
 };
 
 export type UsersMultiSelectMenuElement = AbstractActionElement<"multi_users_select"> & {

@@ -1,18 +1,30 @@
 import { format as formatDate, parse as parseDate } from "date-fns";
 
-import { ModalView } from "~src/view/view.type";
+import { ModalView, OptionObject } from "~src/view/view.type";
 
-type ScheduleModalViewOptions = {
+export type ScheduleModalViewOptions = {
+  initialTimeAuto?: string;
+  initialTimeAway?: string;
+
   disableSaturdaySchedule?: boolean;
   showSaturdayTimePickers?: boolean;
+
+  initialSaturdayTimeAuto?: string;
+  initialSaturdayTimeAway?: string;
+
   disableSundaySchedule?: boolean;
   showSundayTimePickers?: boolean;
+
+  initialSundayTimeAuto?: string;
+  initialSundayTimeAway?: string;
 
   /**
    * An array of exception date strings.
    * Individual date strings must be in the format of `"YYYY-MM-DD"`.
    */
   exceptionDates?: string[];
+
+  pauseUpdates?: boolean;
 };
 
 export type ScheduleModalViewMetadata = {
@@ -43,6 +55,34 @@ export const modalView = (options?: ScheduleModalViewOptions): ModalView => {
     exceptionDates: options?.exceptionDates || []
   };
 
+  const disableSaturdayScheduleOption: OptionObject = {
+    text: { type: "plain_text", text: "Disable status update on Saturday" },
+    value: "disable-saturday-schedule"
+  };
+
+  const differentSaturdayScheduleOption: OptionObject = {
+    text: {
+      type: "plain_text",
+      text: "Use different update schedule for Saturday"
+    },
+    value: "different-saturday-schedule"
+  };
+
+  const disableSundayScheduleOption: OptionObject = {
+    text: { type: "plain_text", text: "Disable status update on Sunday" },
+    value: "disable-sunday-schedule"
+  };
+
+  const differentSundayScheduleOption: OptionObject = {
+    text: { type: "plain_text", text: "Use different update schedule for Sunday" },
+    value: "different-sunday-schedule"
+  };
+
+  const pauseUpdateOption: OptionObject = {
+    text: { type: "plain_text", text: "Pause status updates" },
+    value: "pause-updates"
+  };
+
   return {
     type: "modal",
     callback_id: "schedule-view",
@@ -59,15 +99,23 @@ export const modalView = (options?: ScheduleModalViewOptions): ModalView => {
       },
       {
         type: "section",
-        block_id: "section-schedule-time-away",
-        text: { type: "mrkdwn", text: getDefaultScheduleLabel("away") },
-        accessory: { type: "timepicker", action_id: "time-away" }
+        block_id: "section-schedule-time-auto",
+        text: { type: "mrkdwn", text: getDefaultScheduleLabel("auto") },
+        accessory: {
+          type: "timepicker",
+          action_id: "time-auto",
+          initial_time: options?.initialTimeAuto
+        }
       },
       {
         type: "section",
-        block_id: "section-schedule-time-auto",
-        text: { type: "mrkdwn", text: getDefaultScheduleLabel("auto") },
-        accessory: { type: "timepicker", action_id: "time-auto" }
+        block_id: "section-schedule-time-away",
+        text: { type: "mrkdwn", text: getDefaultScheduleLabel("away") },
+        accessory: {
+          type: "timepicker",
+          action_id: "time-away",
+          initial_time: options?.initialTimeAway
+        }
       },
       {
         type: "section",
@@ -77,37 +125,42 @@ export const modalView = (options?: ScheduleModalViewOptions): ModalView => {
           type: "checkboxes",
           action_id: "saturday-schedule",
           options: [
-            {
-              text: { type: "plain_text", text: "Disable status update on Saturday" },
-              value: "disable-saturday-schedule"
-            },
-            ...(options?.disableSaturdaySchedule
-              ? []
-              : [
-                  {
-                    text: {
-                      type: "plain_text",
-                      text: "Use different update schedule for Saturday"
-                    },
-                    value: "different-saturday-schedule"
-                  } as const
-                ])
-          ]
+            disableSaturdayScheduleOption,
+            ...(options?.disableSaturdaySchedule ? [] : [differentSaturdayScheduleOption])
+          ],
+          ...(options?.disableSaturdaySchedule || options?.showSaturdayTimePickers
+            ? {
+                initial_options: [
+                  ...(options?.disableSaturdaySchedule ? [disableSaturdayScheduleOption] : []),
+                  ...(!options?.disableSaturdaySchedule && options?.showSaturdayTimePickers
+                    ? [differentSaturdayScheduleOption]
+                    : [])
+                ]
+              }
+            : {})
         }
       },
       ...(!options?.disableSaturdaySchedule && options?.showSaturdayTimePickers
         ? [
             {
               type: "section",
-              block_id: "section-saturday-schedule-time-away",
-              text: { type: "mrkdwn", text: "Set my status to `away` on Saturday at:" },
-              accessory: { type: "timepicker", action_id: "saturday-time-away" }
+              block_id: "section-saturday-schedule-time-auto",
+              text: { type: "mrkdwn", text: "Set my status to `auto` on Saturday at:" },
+              accessory: {
+                type: "timepicker",
+                action_id: "saturday-time-auto",
+                initial_time: options.initialSaturdayTimeAuto
+              }
             } as const,
             {
               type: "section",
-              block_id: "section-saturday-schedule-time-auto",
-              text: { type: "mrkdwn", text: "Set my status to `auto` on Saturday at:" },
-              accessory: { type: "timepicker", action_id: "saturday-time-auto" }
+              block_id: "section-saturday-schedule-time-away",
+              text: { type: "mrkdwn", text: "Set my status to `away` on Saturday at:" },
+              accessory: {
+                type: "timepicker",
+                action_id: "saturday-time-away",
+                initial_time: options.initialSaturdayTimeAway
+              }
             } as const
           ]
         : []),
@@ -119,34 +172,42 @@ export const modalView = (options?: ScheduleModalViewOptions): ModalView => {
           type: "checkboxes",
           action_id: "sunday-schedule",
           options: [
-            {
-              text: { type: "plain_text", text: "Disable status update on Sunday" },
-              value: "disable-sunday-schedule"
-            },
-            ...(options?.disableSundaySchedule
-              ? []
-              : [
-                  {
-                    text: { type: "plain_text", text: "Use different update schedule for Sunday" },
-                    value: "different-sunday-schedule"
-                  } as const
-                ])
-          ]
+            disableSundayScheduleOption,
+            ...(options?.disableSundaySchedule ? [] : [differentSundayScheduleOption])
+          ],
+          ...(options?.disableSundaySchedule || options?.showSundayTimePickers
+            ? {
+                initial_options: [
+                  ...(options?.disableSundaySchedule ? [disableSundayScheduleOption] : []),
+                  ...(!options?.disableSundaySchedule && options?.showSundayTimePickers
+                    ? [differentSundayScheduleOption]
+                    : [])
+                ]
+              }
+            : {})
         }
       },
       ...(!options?.disableSundaySchedule && options?.showSundayTimePickers
         ? [
             {
               type: "section",
-              block_id: "section-sunday-schedule-time-away",
-              text: { type: "mrkdwn", text: "Set my status to `away` on Sunday at:" },
-              accessory: { type: "timepicker", action_id: "sunday-time-away" }
+              block_id: "section-sunday-schedule-time-auto",
+              text: { type: "mrkdwn", text: "Set my status to `auto` on Sunday at:" },
+              accessory: {
+                type: "timepicker",
+                action_id: "sunday-time-auto",
+                initial_time: options.initialSundayTimeAuto
+              }
             } as const,
             {
               type: "section",
-              block_id: "section-sunday-schedule-time-auto",
-              text: { type: "mrkdwn", text: "Set my status to `auto` on Sunday at:" },
-              accessory: { type: "timepicker", action_id: "sunday-time-auto" }
+              block_id: "section-sunday-schedule-time-away",
+              text: { type: "mrkdwn", text: "Set my status to `away` on Sunday at:" },
+              accessory: {
+                type: "timepicker",
+                action_id: "sunday-time-away",
+                initial_time: options.initialSundayTimeAway
+              }
             } as const
           ]
         : []),
@@ -200,12 +261,8 @@ export const modalView = (options?: ScheduleModalViewOptions): ModalView => {
           {
             type: "checkboxes",
             action_id: "pause-updates",
-            options: [
-              {
-                text: { type: "plain_text", text: "Pause status updates" },
-                value: "true"
-              }
-            ]
+            options: [pauseUpdateOption],
+            ...(options?.pauseUpdates ? { initial_options: [pauseUpdateOption] } : {})
           }
         ]
       }
