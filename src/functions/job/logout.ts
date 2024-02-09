@@ -8,7 +8,7 @@ import { invokeJobCommand } from "~src/util/job.util";
 import { NamespacedLogger } from "~src/util/logger.util";
 import { promisedFn } from "~src/util/promise.util";
 import { emptyResponse } from "~src/util/response.util";
-import { setUserData } from "~src/util/user-data.util";
+import { deleteUserData } from "~src/util/user-data.util";
 
 type LogoutEvent = {
   Job: LogoutJob;
@@ -22,19 +22,19 @@ export const handler: Handler<LogoutEvent> = async (evt) => {
   const dataBucketName = processEnvGetString("DATA_BUCKET_NAME");
   const jobsQueueUrl = processEnvGetString("JOBS_QUEUE_URL");
 
-  logger.log(`Deleting user auth token and schedule ...`);
-  const setUserDataErr = await setUserData(logger, new S3Client(), dataBucketName, evt.Job.userId, {
-    authToken: undefined,
-    scheduleFromHour24: undefined,
-    scheduleToHour24: undefined
-  });
-
+  logger.log(`Deleting user data ...`);
+  const deleteUserDataErr = await deleteUserData(
+    logger,
+    new S3Client(),
+    dataBucketName,
+    evt.Job.userId
+  );
   let responseMessage: string;
-  if (setUserDataErr) {
-    logger.error(`Error deleting user auth token and schedule: ${setUserDataErr.message}`);
+  if (deleteUserDataErr) {
+    logger.error(`Error deleting user data: ${deleteUserDataErr.message}`);
     responseMessage = `Unable to log out.`;
   } else {
-    logger.log(`Done deleting user auth token and schedule`);
+    logger.log(`Done deleting user data`);
     responseMessage = `Logged out.`;
   }
 

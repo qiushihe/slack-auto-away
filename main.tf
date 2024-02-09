@@ -51,8 +51,6 @@ module "lambda_role" {
   function_arns = [
     module.job_functions_send_response.function_arn,
     module.job_functions_check_status.function_arn,
-    module.job_functions_store_schedule.function_arn,
-    module.job_functions_clear_schedule.function_arn,
     module.job_functions_store_auth.function_arn,
     module.job_functions_store_timezone.function_arn,
     module.job_functions_logout.function_arn,
@@ -215,6 +213,7 @@ module "interactivity_functions_default" {
 
   environment_variables = {
     DATA_BUCKET_NAME     = module.data_bucket.bucket_name
+    JOBS_QUEUE_URL       = aws_sqs_queue.jobs.url
     SLACK_API_URL_PREFIX = var.slack_api_url_prefix
     SIGNING_SECRET       = var.slack_app_signing_secret
   }
@@ -244,8 +243,6 @@ module "job_functions_dispatch" {
   environment_variables = {
     FUNCTION_ARN_SEND_RESPONSE   = module.job_functions_send_response.function_arn
     FUNCTION_ARN_CHECK_STATUS    = module.job_functions_check_status.function_arn
-    FUNCTION_ARN_STORE_SCHEDULE  = module.job_functions_store_schedule.function_arn
-    FUNCTION_ARN_CLEAR_SCHEDULE  = module.job_functions_clear_schedule.function_arn
     FUNCTION_ARN_STORE_AUTH      = module.job_functions_store_auth.function_arn
     FUNCTION_ARN_STORE_TIMEZONE  = module.job_functions_store_timezone.function_arn
     FUNCTION_ARN_LOGOUT          = module.job_functions_logout.function_arn
@@ -284,44 +281,6 @@ module "job_functions_check_status" {
 
   environment_variables = {
     DATA_BUCKET_NAME = module.data_bucket.bucket_name
-  }
-
-  role_arn      = module.lambda_role.iam_role_arn
-  execution_arn = module.lambda_gateway.gateway_execution_arn
-  api_id        = module.lambda_gateway.gateway_api_id
-}
-
-module "job_functions_store_schedule" {
-  source           = "./modules/aws-lambda-function"
-  function_name    = "JobStoreSchedule"
-  function_handler = "store-schedule"
-
-  s3_bucket        = module.job_functions.archive_bucket
-  s3_key           = module.job_functions.archive_key
-  source_code_hash = module.job_functions.archive_base64sha256
-
-  environment_variables = {
-    DATA_BUCKET_NAME = module.data_bucket.bucket_name
-    JOBS_QUEUE_URL   = aws_sqs_queue.jobs.url
-  }
-
-  role_arn      = module.lambda_role.iam_role_arn
-  execution_arn = module.lambda_gateway.gateway_execution_arn
-  api_id        = module.lambda_gateway.gateway_api_id
-}
-
-module "job_functions_clear_schedule" {
-  source           = "./modules/aws-lambda-function"
-  function_name    = "JobClearSchedule"
-  function_handler = "clear-schedule"
-
-  s3_bucket        = module.job_functions.archive_bucket
-  s3_key           = module.job_functions.archive_key
-  source_code_hash = module.job_functions.archive_base64sha256
-
-  environment_variables = {
-    DATA_BUCKET_NAME = module.data_bucket.bucket_name
-    JOBS_QUEUE_URL   = aws_sqs_queue.jobs.url
   }
 
   role_arn      = module.lambda_role.iam_role_arn

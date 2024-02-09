@@ -9,10 +9,8 @@ import { jsonResponse } from "~src/util/response.util";
 
 import { command as handleAuthCommand } from "./command/auth.cmd";
 import { command as handleDebugCommand } from "./command/debug.cmd";
-import { command as handleFromCommand } from "./command/from.cmd";
 import { command as handleHelpCommand } from "./command/help.cmd";
 import { command as handleLogoutCommand } from "./command/logout.cmd";
-import { command as handleOffCommand } from "./command/off.cmd";
 import { command as handleRivenCommand } from "./command/riven.cmd";
 import { command as handleScheduleCommand } from "./command/schedule.cmd";
 import { command as handleStatusCommand } from "./command/status.cmd";
@@ -22,10 +20,8 @@ interface SlashCommandDefaultEvent extends IVerifiableEvent {}
 const COMMAND_HANDLER: Record<string, CommandHandler> = {
   auth: handleAuthCommand,
   debug: handleDebugCommand,
-  from: handleFromCommand,
   help: handleHelpCommand,
   logout: handleLogoutCommand,
-  off: handleOffCommand,
   riven: handleRivenCommand,
   schedule: handleScheduleCommand,
   status: handleStatusCommand

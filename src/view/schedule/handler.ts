@@ -1,8 +1,11 @@
 import { S3Client } from "@aws-sdk/client-s3";
+import { SQSClient } from "@aws-sdk/client-sqs";
 
+import { JobName } from "~src/constant/job.constant";
 import { UserSchedule } from "~src/constant/user-data.constant";
-import { InteractivityEventHandler } from "~src/functions/interactivity/event-handler.type";
+import { InteractivityEventHandlerBuilder } from "~src/functions/interactivity/event-handler.type";
 import { arrayUnique } from "~src/util/array.util";
+import { invokeJobCommand } from "~src/util/job.util";
 import { promisedFn } from "~src/util/promise.util";
 import { getUserData, setUserData } from "~src/util/user-data.util";
 import { State as StatePayload } from "~src/view/payload.type";
@@ -16,8 +19,8 @@ const REMOVE_EXCEPTION_DATE_ACTION_ID_REGEXP = new RegExp(
   "^remove-exception-date-(\\d\\d\\d\\d-\\d\\d-\\d\\d)$"
 );
 
-export const eventHandler: InteractivityEventHandler =
-  (logger, dataBucketName, slackApiUrlPrefix) => async (payload) => {
+export const buildEventHandler: InteractivityEventHandlerBuilder =
+  (opts) => (logger, dataBucketName, slackApiUrlPrefix) => async (payload) => {
     if (payload.type !== "block_actions" && payload.type !== "view_submission") {
       logger.warn(`Unknown interactivity payload type: ${payload["type"]}`);
       return null;
@@ -183,6 +186,20 @@ export const eventHandler: InteractivityEventHandler =
         return new Error(`Unable to save user schedule data: ${setUserDataErr.message}`);
       } else {
         logger.log(`Done saving user schedule data`);
+      }
+
+      logger.log(`Enqueuing ${JobName.INDEX_USER_DATA} job ...`);
+      const [queueErr] = await promisedFn(
+        (userId: string) =>
+          new SQSClient().send(
+            invokeJobCommand(opts.jobsQueueUrl, JobName.INDEX_USER_DATA, { userId })
+          ),
+        payload.user.id
+      );
+      if (queueErr) {
+        logger.error(`Error enqueuing ${JobName.INDEX_USER_DATA} job: ${queueErr.message}`);
+      } else {
+        logger.log(`Done enqueuing ${JobName.INDEX_USER_DATA} job`);
       }
     }
 

@@ -1,5 +1,6 @@
 import { S3Client } from "@aws-sdk/client-s3";
 import { Handler } from "aws-lambda";
+import { format as formatDate, isPast as isPastDate, parse as parseDate } from "date-fns";
 import getTimezoneOffset from "date-fns-tz/getTimezoneOffset";
 
 import { CheckStatusJob } from "~src/constant/job.constant";
@@ -8,7 +9,7 @@ import { processEnvGetString } from "~src/util/env.util";
 import { NamespacedLogger } from "~src/util/logger.util";
 import { promisedFn } from "~src/util/promise.util";
 import { emptyResponse } from "~src/util/response.util";
-import { stringifyNormalizedTime } from "~src/util/time.util";
+import { verboseRange as range } from "~src/util/time.util";
 import { getUserData } from "~src/util/user-data.util";
 import { isUserIdIndexed } from "~src/util/user-index.util";
 
@@ -23,7 +24,9 @@ export const handler: Handler<CheckStatusEvent> = async (evt) => {
 
   const dataBucketName = processEnvGetString("DATA_BUCKET_NAME");
 
-  const statusMessages: string[] = [];
+  const authStatus: string[] = [];
+  const timezoneStatus: string[] = [];
+  const scheduleStatus: string[] = [];
 
   logger.log(`Checking user auth index ...`);
   const [hasAuthErr, hasAuth] = await isUserIdIndexed(
@@ -35,10 +38,10 @@ export const handler: Handler<CheckStatusEvent> = async (evt) => {
   );
   if (hasAuthErr) {
     logger.error(`Error checking user index ${IndexName.HAS_AUTH}: ${hasAuthErr.message}`);
-    statusMessages.push("Authentication: error");
+    authStatus.push("Error");
   } else {
     logger.log(`Done checking user auth index`);
-    statusMessages.push(`Authentication: ${hasAuth ? "authenticated" : "not authenticated"}`);
+    authStatus.push(`${hasAuth ? "Authenticated" : "Not authenticated"}`);
 
     if (hasAuth) {
       logger.log(`Getting user data ...`);
@@ -50,8 +53,8 @@ export const handler: Handler<CheckStatusEvent> = async (evt) => {
       );
       if (userDataErr) {
         logger.error(`Error getting user data: ${userDataErr.message}`);
-        statusMessages.push("Timezone: error");
-        statusMessages.push("Schedule: error");
+        timezoneStatus.push("Error");
+        scheduleStatus.push("Error");
       } else {
         logger.log(`Done getting user data`);
 
@@ -63,21 +66,71 @@ export const handler: Handler<CheckStatusEvent> = async (evt) => {
             Math.abs(offset - Math.abs(Math.trunc(offset)) * (offset < 0 ? -1 : 1)) * 60
           }`.padStart(2, "0");
 
-          statusMessages.push(`Timezone: ${userData.timezoneName} (${prefix}${hours}${minutes})`);
+          timezoneStatus.push(`${userData.timezoneName} (${prefix}${hours}${minutes})`);
         } else {
-          statusMessages.push("Timezone: missing");
+          timezoneStatus.push("Missing");
         }
 
-        if (userData?.scheduleFromHour24 && userData.scheduleToHour24) {
-          const [fromTime24Str, fromTime12Str] = stringifyNormalizedTime(
-            userData.scheduleFromHour24
-          );
-          const [toTime24Str, toTime12Str] = stringifyNormalizedTime(userData.scheduleToHour24);
-          statusMessages.push(
-            `Schedule: from ${fromTime12Str} (${fromTime24Str}) to ${toTime12Str} (${toTime24Str})`
-          );
+        if (userData?.schedule) {
+          const {
+            timeAuto,
+            timeAway,
+            disableSaturdaySchedule,
+            differentSaturdaySchedule,
+            saturdayTimeAuto,
+            saturdayTimeAway,
+            disableSundaySchedule,
+            differentSundaySchedule,
+            sundayTimeAuto,
+            sundayTimeAway,
+            exceptionDates,
+            pauseUpdates
+          } = userData.schedule;
+
+          if (pauseUpdates) {
+            scheduleStatus.push(`Update paused`);
+          } else {
+            scheduleStatus.push(`Daily from ${range(timeAway, timeAuto)}`);
+
+            if (disableSaturdaySchedule) {
+              if (disableSundaySchedule) {
+                scheduleStatus.push("No update on Saturday and Sunday");
+              } else if (differentSundaySchedule) {
+                scheduleStatus.push("No update on Saturday");
+                scheduleStatus.push(`Sunday from ${range(sundayTimeAway, sundayTimeAuto)}`);
+              } else {
+                scheduleStatus.push("No update on Saturday");
+              }
+            } else if (differentSaturdaySchedule) {
+              if (disableSundaySchedule) {
+                scheduleStatus.push("No update on Sunday");
+                scheduleStatus.push(`Saturday from ${range(saturdayTimeAway, saturdayTimeAuto)}`);
+              } else if (differentSundaySchedule) {
+                scheduleStatus.push(`Saturday from ${range(saturdayTimeAway, saturdayTimeAuto)}`);
+                scheduleStatus.push(`Sunday from ${range(sundayTimeAway, sundayTimeAuto)}`);
+              } else {
+                scheduleStatus.push(`Saturday from ${range(saturdayTimeAway, saturdayTimeAuto)}`);
+              }
+            } else {
+              if (disableSundaySchedule) {
+                scheduleStatus.push("No update on Sunday");
+              } else if (differentSundaySchedule) {
+                scheduleStatus.push(`Sunday from ${range(sundayTimeAway, sundayTimeAuto)}`);
+              } else {
+                // Both Saturday and Sunday use default schedule
+              }
+            }
+
+            exceptionDates.forEach((exceptionDateStr) => {
+              const exceptionDate = parseDate(exceptionDateStr, "yyyy-MM-dd", new Date());
+
+              if (!isPastDate(exceptionDate)) {
+                scheduleStatus.push(`No update on ${formatDate(exceptionDate, "MMMM do, yyyy")}`);
+              }
+            });
+          }
         } else {
-          statusMessages.push("Schedule: off");
+          scheduleStatus.push("Not set");
         }
       }
     }
@@ -89,7 +142,48 @@ export const handler: Handler<CheckStatusEvent> = async (evt) => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        text: ["Status:", ...statusMessages.map((message) => ` • ${message}`)].join("\n")
+        blocks: [
+          {
+            type: "rich_text",
+            elements: [
+              {
+                type: "rich_text_section",
+                elements: [
+                  { type: "text", text: "Authentication: ", style: { bold: true } },
+                  { type: "text", text: authStatus.join("; ") }
+                ]
+              },
+              {
+                type: "rich_text_section",
+                elements: [
+                  { type: "text", text: "Timezone: ", style: { bold: true } },
+                  { type: "text", text: timezoneStatus.join("; ") }
+                ]
+              },
+              {
+                type: "rich_text_section",
+                elements: [
+                  { type: "text", text: "Schedule: ", style: { bold: true } },
+                  ...(scheduleStatus.length <= 1
+                    ? [{ type: "text", text: scheduleStatus.join("; ") }]
+                    : [])
+                ]
+              },
+              ...(scheduleStatus.length > 1
+                ? [
+                    {
+                      type: "rich_text_list",
+                      style: "bullet",
+                      elements: scheduleStatus.map((message) => ({
+                        type: "rich_text_section",
+                        elements: [{ type: "text", text: message }]
+                      }))
+                    }
+                  ]
+                : [])
+            ]
+          }
+        ]
       })
     })
   );

@@ -80,11 +80,7 @@ export const handler: Handler<IndexUserDataEvent> = async (evt) => {
       ),
       updateIndex(
         IndexName.HAS_SCHEDULE,
-        () =>
-          !!userData.scheduleFromHour24 &&
-          userData.scheduleFromHour24 >= 0 &&
-          !!userData.scheduleToHour24 &&
-          userData.scheduleToHour24 >= 0
+        () => !!userData.schedule && !userData.schedule.pauseUpdates
       )
     ]);
   }

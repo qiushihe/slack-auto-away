@@ -1,26 +1,27 @@
 import { Handler } from "aws-lambda";
 
 import { InteractivityEventPayload, InteractivityPayload } from "~src/constant/event.constant";
-import { InteractivityEventHandler } from "~src/functions/interactivity/event-handler.type";
+import { InteractivityEventHandlerBuilder } from "~src/functions/interactivity/event-handler.type";
 import { processEnvGetString } from "~src/util/env.util";
 import { NamespacedLogger } from "~src/util/logger.util";
 import { promisedFn } from "~src/util/promise.util";
 import { eventBodyExtractor, IVerifiableEvent } from "~src/util/request.util";
 import { emptyResponse } from "~src/util/response.util";
-import { eventHandler as scheduleViewHandler } from "~src/view/schedule/handler";
+import { buildEventHandler as buildScheduleViewHandler } from "~src/view/schedule/handler";
 
 interface InteractivityDefaultEvent extends IVerifiableEvent {}
 
 const logger = new NamespacedLogger("interactivity/default");
 
-const VIEW_EVENT_HANDLER: Record<string, InteractivityEventHandler> = {
-  "schedule-view": scheduleViewHandler
+const VIEW_EVENT_HANDLER_BUILDER: Record<string, InteractivityEventHandlerBuilder> = {
+  "schedule-view": buildScheduleViewHandler
 };
 
 export const handler: Handler<InteractivityDefaultEvent> = async (evt) => {
   logger.log("Event: ", evt);
 
   const dataBucketName = processEnvGetString("DATA_BUCKET_NAME");
+  const jobsQueueUrl = processEnvGetString("JOBS_QUEUE_URL");
   const slackApiUrlPrefix = processEnvGetString("SLACK_API_URL_PREFIX");
   const signingSecret = processEnvGetString("SIGNING_SECRET");
 
@@ -59,14 +60,15 @@ export const handler: Handler<InteractivityDefaultEvent> = async (evt) => {
     logger.log(`Received interactivity payload callback ID: ${viewCallbackId}`);
   }
 
-  const eventHandler = VIEW_EVENT_HANDLER[viewCallbackId];
-  if (!eventHandler) {
+  const buildEventHandler = VIEW_EVENT_HANDLER_BUILDER[viewCallbackId];
+  if (!buildEventHandler) {
     logger.error(`Unknown interactivity payload callback ID: ${viewCallbackId}`);
     return emptyResponse();
   } else {
     logger.log(`Found event handler for interactivity payload callback ID: ${viewCallbackId}`);
   }
 
+  const eventHandler = buildEventHandler({ jobsQueueUrl });
   const handleViewEvent = eventHandler(logger, dataBucketName, slackApiUrlPrefix);
   const viewEventErr = await handleViewEvent(interactivityPayload);
   if (viewEventErr) {

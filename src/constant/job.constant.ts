@@ -1,8 +1,6 @@
 export enum JobName {
   SEND_RESPONSE = "SEND_RESPONSE",
   CHECK_STATUS = "CHECK_STATUS",
-  STORE_SCHEDULE = "STORE_SCHEDULE",
-  CLEAR_SCHEDULE = "CLEAR_SCHEDULE",
   STORE_AUTH = "STORE_AUTH",
   STORE_TIMEZONE = "STORE_TIMEZONE",
   LOGOUT = "LOGOUT",
@@ -21,20 +19,6 @@ export interface SendResponseJob extends Job {
 
 export interface CheckStatusJob extends Job {
   type: JobName.CHECK_STATUS;
-  responseUrl: string;
-  userId: string;
-}
-
-export interface StoreScheduleJob extends Job {
-  type: JobName.STORE_SCHEDULE;
-  responseUrl: string;
-  userId: string;
-  fromHour24: number;
-  toHour24: number;
-}
-
-export interface ClearScheduleJob extends Job {
-  type: JobName.CLEAR_SCHEDULE;
   responseUrl: string;
   userId: string;
 }
@@ -65,8 +49,6 @@ export interface IndexUserDataJob extends Job {
 export type JobByName = {
   [JobName.SEND_RESPONSE]: SendResponseJob;
   [JobName.CHECK_STATUS]: CheckStatusJob;
-  [JobName.STORE_SCHEDULE]: StoreScheduleJob;
-  [JobName.CLEAR_SCHEDULE]: ClearScheduleJob;
   [JobName.STORE_AUTH]: StoreAuthJob;
   [JobName.STORE_TIMEZONE]: StoreTimezoneJob;
   [JobName.LOGOUT]: LogoutJob;

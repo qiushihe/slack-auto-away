@@ -23,8 +23,6 @@ export const handler: Handler<JobProcessEvent> = async (evt) => {
   const functionArnByJob: Record<JobName, string> = {
     [JobName.SEND_RESPONSE]: processEnvGetString("FUNCTION_ARN_SEND_RESPONSE"),
     [JobName.CHECK_STATUS]: processEnvGetString("FUNCTION_ARN_CHECK_STATUS"),
-    [JobName.STORE_SCHEDULE]: processEnvGetString("FUNCTION_ARN_STORE_SCHEDULE"),
-    [JobName.CLEAR_SCHEDULE]: processEnvGetString("FUNCTION_ARN_CLEAR_SCHEDULE"),
     [JobName.STORE_AUTH]: processEnvGetString("FUNCTION_ARN_STORE_AUTH"),
     [JobName.STORE_TIMEZONE]: processEnvGetString("FUNCTION_ARN_STORE_TIMEZONE"),
     [JobName.LOGOUT]: processEnvGetString("FUNCTION_ARN_LOGOUT"),

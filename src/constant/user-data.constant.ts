@@ -28,14 +28,4 @@ export type UserData = {
   authToken?: string;
   timezoneName?: string;
   schedule?: UserSchedule;
-
-  /**
-   * @deprecated: Use `schedule` instead.
-   */
-  scheduleFromHour24?: number;
-
-  /**
-   * @deprecated: Use `schedule` instead.
-   */
-  scheduleToHour24?: number;
 };

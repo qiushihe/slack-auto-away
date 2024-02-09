@@ -11,4 +11,12 @@ export type InteractivityEventHandler = (
   slackApiUrlPrefix: string
 ) => InteractivityEventPayloadHandler;
 
+export type InteractivityEventHandlerBuilderOptions = {
+  jobsQueueUrl: string;
+};
+
+export type InteractivityEventHandlerBuilder = (
+  opts: InteractivityEventHandlerBuilderOptions
+) => InteractivityEventHandler;
+
 export default {};
