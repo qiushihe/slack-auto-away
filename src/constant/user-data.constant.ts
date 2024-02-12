@@ -1,10 +1,14 @@
+import { TimezoneName } from "~src/type/timezone.generated.type";
+
 export const INDEX_PREFIX = "_index/";
 
-export enum IndexName {
+export enum BooleanIndexName {
   HAS_AUTH = "HAS_AUTH",
   HAS_TIMEZONE = "HAS_TIMEZONE",
   HAS_SCHEDULE = "HAS_SCHEDULE"
 }
+
+export type IndexName = BooleanIndexName | TimezoneName;
 
 export const USER_DATA_PREFIX = "_userData/";
 

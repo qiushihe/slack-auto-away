@@ -4,7 +4,7 @@ import { format as formatDate, isPast as isPastDate, parse as parseDate } from "
 import getTimezoneOffset from "date-fns-tz/getTimezoneOffset";
 
 import { CheckStatusJob } from "~src/constant/job.constant";
-import { IndexName } from "~src/constant/user-data.constant";
+import { BooleanIndexName } from "~src/constant/user-data.constant";
 import { processEnvGetString } from "~src/util/env.util";
 import { NamespacedLogger } from "~src/util/logger.util";
 import { promisedFn } from "~src/util/promise.util";
@@ -33,11 +33,11 @@ export const handler: Handler<CheckStatusEvent> = async (evt) => {
     logger,
     new S3Client(),
     dataBucketName,
-    IndexName.HAS_AUTH,
+    BooleanIndexName.HAS_AUTH,
     evt.Job.userId
   );
   if (hasAuthErr) {
-    logger.error(`Error checking user index ${IndexName.HAS_AUTH}: ${hasAuthErr.message}`);
+    logger.error(`Error checking user index ${BooleanIndexName.HAS_AUTH}: ${hasAuthErr.message}`);
     authStatus.push("Error");
   } else {
     logger.log(`Done checking user auth index`);

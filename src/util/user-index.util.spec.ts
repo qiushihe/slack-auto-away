@@ -8,7 +8,7 @@ import {
   S3ServiceException
 } from "@aws-sdk/client-s3";
 
-import { INDEX_PREFIX, IndexName } from "../constant/user-data.constant";
+import { BooleanIndexName, INDEX_PREFIX, IndexName } from "../constant/user-data.constant";
 import { NamespacedLogger, UnitTestNamespacedLogger } from "./logger.util";
 import {
   addUserIdToIndex,
@@ -37,7 +37,7 @@ describe("util / user-index", () => {
 
   describe("getIndexedUserIds", () => {
     it("should return error when bucket does not exist", async () => {
-      const [err] = await getIndexedUserIds(logger, s3, bucketName, IndexName.HAS_AUTH);
+      const [err] = await getIndexedUserIds(logger, s3, bucketName, BooleanIndexName.HAS_AUTH);
 
       expect(err).toBeInstanceOf(S3ServiceException);
       expect(err as S3ServiceException).toHaveProperty("name", "NoSuchBucket");
@@ -49,7 +49,12 @@ describe("util / user-index", () => {
       });
 
       it("should return empty array when no user IDs were indexed", async () => {
-        const [err, userIds] = await getIndexedUserIds(logger, s3, bucketName, IndexName.HAS_AUTH);
+        const [err, userIds] = await getIndexedUserIds(
+          logger,
+          s3,
+          bucketName,
+          BooleanIndexName.HAS_AUTH
+        );
 
         expect(err).toBeNull();
         expect(userIds).toHaveLength(0);
@@ -71,7 +76,7 @@ describe("util / user-index", () => {
         });
 
         it("should return indexed user IDs", async () => {
-          const indexUserId = userIdIndexer(IndexName.HAS_AUTH);
+          const indexUserId = userIdIndexer(BooleanIndexName.HAS_AUTH);
           await indexUserId("user-1");
           await indexUserId("user-2");
           await indexUserId("user-3");
@@ -80,7 +85,7 @@ describe("util / user-index", () => {
             logger,
             s3,
             bucketName,
-            IndexName.HAS_AUTH
+            BooleanIndexName.HAS_AUTH
           );
 
           expect(err).toBeNull();
@@ -91,7 +96,7 @@ describe("util / user-index", () => {
         });
 
         it("should return all indexed user IDs via pagination", async () => {
-          const indexUserId = userIdIndexer(IndexName.HAS_AUTH);
+          const indexUserId = userIdIndexer(BooleanIndexName.HAS_AUTH);
           await indexUserId("user-1");
           await indexUserId("user-2");
           await indexUserId("user-3");
@@ -104,7 +109,7 @@ describe("util / user-index", () => {
             logger,
             s3,
             bucketName,
-            IndexName.HAS_AUTH,
+            BooleanIndexName.HAS_AUTH,
             { maxKeys: 3 }
           );
 
@@ -130,7 +135,13 @@ describe("util / user-index", () => {
     });
 
     it("should return error when bucket does not exist", async () => {
-      const err = await addUserIdToIndex(logger, s3, bucketName, IndexName.HAS_SCHEDULE, userId);
+      const err = await addUserIdToIndex(
+        logger,
+        s3,
+        bucketName,
+        BooleanIndexName.HAS_SCHEDULE,
+        userId
+      );
 
       expect(err).toBeInstanceOf(S3ServiceException);
       expect(err as S3ServiceException).toHaveProperty("name", "NoSuchBucket");
@@ -146,19 +157,25 @@ describe("util / user-index", () => {
           s3.send(
             new GetObjectCommand({
               Bucket: bucketName,
-              Key: `${INDEX_PREFIX}${IndexName.HAS_SCHEDULE}/${userId}`
+              Key: `${INDEX_PREFIX}${BooleanIndexName.HAS_SCHEDULE}/${userId}`
             })
           )
         ).rejects.toThrow("The specified key does not exist.");
 
-        const err = await addUserIdToIndex(logger, s3, bucketName, IndexName.HAS_SCHEDULE, userId);
+        const err = await addUserIdToIndex(
+          logger,
+          s3,
+          bucketName,
+          BooleanIndexName.HAS_SCHEDULE,
+          userId
+        );
         expect(err).toBeNull();
 
         await expect(
           s3.send(
             new GetObjectCommand({
               Bucket: bucketName,
-              Key: `${INDEX_PREFIX}${IndexName.HAS_SCHEDULE}/${userId}`
+              Key: `${INDEX_PREFIX}${BooleanIndexName.HAS_SCHEDULE}/${userId}`
             })
           )
         ).resolves.not.toThrow();
@@ -169,13 +186,19 @@ describe("util / user-index", () => {
           s3.send(
             new PutObjectCommand({
               Bucket: bucketName,
-              Key: `${INDEX_PREFIX}${IndexName.HAS_SCHEDULE}/${userId}`,
-              Body: `${IndexName.HAS_SCHEDULE}:${userId}`
+              Key: `${INDEX_PREFIX}${BooleanIndexName.HAS_SCHEDULE}/${userId}`,
+              Body: `${BooleanIndexName.HAS_SCHEDULE}:${userId}`
             })
           )
         ).resolves.not.toThrow();
 
-        const err = await addUserIdToIndex(logger, s3, bucketName, IndexName.HAS_SCHEDULE, userId);
+        const err = await addUserIdToIndex(
+          logger,
+          s3,
+          bucketName,
+          BooleanIndexName.HAS_SCHEDULE,
+          userId
+        );
         expect(err).toBeNull();
       });
     });
@@ -193,7 +216,7 @@ describe("util / user-index", () => {
         logger,
         s3,
         bucketName,
-        IndexName.HAS_TIMEZONE,
+        BooleanIndexName.HAS_TIMEZONE,
         userId
       );
 
@@ -211,8 +234,8 @@ describe("util / user-index", () => {
           s3.send(
             new PutObjectCommand({
               Bucket: bucketName,
-              Key: `${INDEX_PREFIX}${IndexName.HAS_TIMEZONE}/${userId}`,
-              Body: `${IndexName.HAS_TIMEZONE}:${userId}`
+              Key: `${INDEX_PREFIX}${BooleanIndexName.HAS_TIMEZONE}/${userId}`,
+              Body: `${BooleanIndexName.HAS_TIMEZONE}:${userId}`
             })
           )
         ).resolves.not.toThrow();
@@ -221,7 +244,7 @@ describe("util / user-index", () => {
           logger,
           s3,
           bucketName,
-          IndexName.HAS_TIMEZONE,
+          BooleanIndexName.HAS_TIMEZONE,
           userId
         );
         expect(err).toBeNull();
@@ -230,7 +253,7 @@ describe("util / user-index", () => {
           s3.send(
             new GetObjectCommand({
               Bucket: bucketName,
-              Key: `${INDEX_PREFIX}${IndexName.HAS_TIMEZONE}/${userId}`
+              Key: `${INDEX_PREFIX}${BooleanIndexName.HAS_TIMEZONE}/${userId}`
             })
           )
         ).rejects.toThrow("The specified key does not exist.");
@@ -241,7 +264,7 @@ describe("util / user-index", () => {
           logger,
           s3,
           bucketName,
-          IndexName.HAS_TIMEZONE,
+          BooleanIndexName.HAS_TIMEZONE,
           userId
         );
         expect(err).toBeNull();
@@ -257,7 +280,13 @@ describe("util / user-index", () => {
     });
 
     it("should return error when bucket does not exist", async () => {
-      const [err] = await isUserIdIndexed(logger, s3, bucketName, IndexName.HAS_AUTH, userId);
+      const [err] = await isUserIdIndexed(
+        logger,
+        s3,
+        bucketName,
+        BooleanIndexName.HAS_AUTH,
+        userId
+      );
 
       expect(err).toBeInstanceOf(S3ServiceException);
       expect(err as S3ServiceException).toHaveProperty("name", "NoSuchBucket");
@@ -273,7 +302,7 @@ describe("util / user-index", () => {
           logger,
           s3,
           bucketName,
-          IndexName.HAS_AUTH,
+          BooleanIndexName.HAS_AUTH,
           userId
         );
         expect(err).toBeNull();
@@ -285,8 +314,8 @@ describe("util / user-index", () => {
           s3.send(
             new PutObjectCommand({
               Bucket: bucketName,
-              Key: `${INDEX_PREFIX}${IndexName.HAS_AUTH}/${userId}`,
-              Body: `${IndexName.HAS_AUTH}:${userId}`
+              Key: `${INDEX_PREFIX}${BooleanIndexName.HAS_AUTH}/${userId}`,
+              Body: `${BooleanIndexName.HAS_AUTH}:${userId}`
             })
           )
         ).resolves.not.toThrow();
@@ -295,7 +324,7 @@ describe("util / user-index", () => {
           logger,
           s3,
           bucketName,
-          IndexName.HAS_AUTH,
+          BooleanIndexName.HAS_AUTH,
           userId
         );
         expect(err).toBeNull();

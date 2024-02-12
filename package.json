@@ -14,8 +14,10 @@
     "test:unit": "npm-run-all test:unit:clean test:unit:jest",
     "test:unit:clean": "shx rm -rf .coverage",
     "test:unit:jest": "jest --config jest.config.json --runInBand --logHeapUsage --coverage",
-    "build": "npm-run-all build:clean build:rollup",
+    "build": "npm-run-all build:clean build:type build:rollup",
     "build:clean": "shx rm -rf .build",
+    "build:type": "npm-run-all build:type:timezone",
+    "build:type:timezone": "ts-node --esm ./script/generate-timezone-names-type.ts",
     "build:rollup": "ts-node --esm ./script/rollup-build.ts ./src/functions",
     "deploy": "npm-run-all build deploy:terraform:init deploy:terraform:apply:auto",
     "deploy:terraform:init": "terraform init",
@@ -51,6 +53,7 @@
     "@aws-sdk/client-lambda": "^3.449.0",
     "@aws-sdk/client-s3": "^3.445.0",
     "@aws-sdk/client-sqs": "^3.447.0",
+    "@vvo/tzdb": "^6.125.0",
     "date-fns": "^3.0.6",
     "date-fns-tz": "^2.0.0"
   }
