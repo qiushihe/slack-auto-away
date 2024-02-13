@@ -11,18 +11,18 @@ import { INDEX_PREFIX, IndexName } from "~src/constant/user-data.constant";
 import { NamespacedLogger } from "~src/util/logger.util";
 import { promisedFn } from "~src/util/promise.util";
 
-export type GetIndexedUserIdsOptions = {
+type GetPaginatedIndexedUserIdsOptions = {
   maxKeys?: number;
   continuationToken?: string;
 };
 
-export const getIndexedUserIds = async (
+const _getPaginatedIndexedUserIds = async (
   logger: NamespacedLogger,
   s3: S3Client,
   bucketName: string,
   indexName: IndexName,
-  options?: GetIndexedUserIdsOptions
-): Promise<[Error, null] | [null, string[]]> => {
+  options?: GetPaginatedIndexedUserIdsOptions
+): Promise<[Error, null, null] | [null, string[], string | null]> => {
   const [listObjectsErr, listObjectsRes] = await promisedFn(() =>
     s3.send(
       new ListObjectsV2Command({
@@ -34,8 +34,10 @@ export const getIndexedUserIds = async (
     )
   );
   if (listObjectsErr) {
-    logger.error(`Error listing ${indexName} index files from S3: ${listObjectsErr.message}`);
-    return [listObjectsErr, null];
+    logger.error(
+      `Error listing paginated ${indexName} index files from S3: ${listObjectsErr.message}`
+    );
+    return [listObjectsErr, null, null];
   }
 
   const indexedKeys = (listObjectsRes?.Contents || [])
@@ -44,22 +46,44 @@ export const getIndexedUserIds = async (
     .filter((item, itemIndex, allItems) => allItems.indexOf(item) === itemIndex)
     .map((key) => key.split("/").reverse()[0]);
 
-  if (listObjectsRes?.NextContinuationToken) {
-    logger.log(`Listing more ${indexName} index files from S3 ...`);
-    const [moreIdsErr, moreIds] = await getIndexedUserIds(logger, s3, bucketName, indexName, {
-      ...(options || {}),
-      continuationToken: listObjectsRes.NextContinuationToken
-    });
-    if (moreIdsErr) {
-      return [moreIdsErr, null];
+  logger.log(`Done listing paginated ${indexName} index files from S3`);
+  return [null, indexedKeys, listObjectsRes?.NextContinuationToken || null];
+};
+
+export type GetIndexedUserIdsOptions = Omit<GetPaginatedIndexedUserIdsOptions, "continuationToken">;
+
+export const getIndexedUserIds = async (
+  logger: NamespacedLogger,
+  s3: S3Client,
+  bucketName: string,
+  indexName: IndexName,
+  options?: GetIndexedUserIdsOptions
+): Promise<[Error, null] | [null, string[]]> => {
+  let continuationToken: string | undefined = undefined;
+  let allUserIds: string[] = [];
+
+  while (true) {
+    const [userIdsErr, userIds, token] = await _getPaginatedIndexedUserIds(
+      logger,
+      s3,
+      bucketName,
+      indexName,
+      { ...options, continuationToken }
+    );
+    if (userIdsErr) {
+      return [userIdsErr, null];
     }
 
-    logger.log(`Done listing more ${indexName} index files from S3`);
-    return [null, [...indexedKeys, ...moreIds]];
-  } else {
-    logger.log(`Done listing ${indexName} index files from S3`);
-    return [null, indexedKeys];
+    allUserIds = [...allUserIds, ...userIds];
+
+    if (!token) {
+      break;
+    }
+
+    continuationToken = token;
   }
+
+  return [null, allUserIds];
 };
 
 export const addUserIdToIndex = async (

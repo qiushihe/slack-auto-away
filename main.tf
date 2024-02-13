@@ -410,7 +410,9 @@ module "schedule_functions_apply" {
   s3_key           = module.schedule_functions.archive_key
   source_code_hash = module.schedule_functions.archive_base64sha256
 
-  environment_variables = {}
+  environment_variables = {
+    DATA_BUCKET_NAME = module.data_bucket.bucket_name
+  }
 
   role_arn      = module.lambda_role.iam_role_arn
   execution_arn = module.lambda_gateway.gateway_execution_arn
