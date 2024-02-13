@@ -35,13 +35,13 @@ const booleanIndicesUpdater =
             return null;
           }
         } else {
-          logger.log(`Removing user ID ${userId} to index ${indexName} ...`);
+          logger.log(`Removing user ID ${userId} from index ${indexName} ...`);
           const err = await removeUserIdFromIndex(...updateIndexArgs);
           if (err) {
-            logger.log(`Error removing user ID ${userId} to index ${indexName}: ${err.message}`);
+            logger.log(`Error removing user ID ${userId} from index ${indexName}: ${err.message}`);
             return [indexName, err] as const;
           } else {
-            logger.log(`Done removing user ID ${userId} to index ${indexName}`);
+            logger.log(`Done removing user ID ${userId} from index ${indexName}`);
             return null;
           }
         }
