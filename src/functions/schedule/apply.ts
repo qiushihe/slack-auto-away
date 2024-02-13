@@ -1,12 +1,14 @@
 import { S3Client } from "@aws-sdk/client-s3";
+import { SQSClient } from "@aws-sdk/client-sqs";
 import { Handler } from "aws-lambda";
 
+import { JobName } from "~src/constant/job.constant";
 import { BooleanIndexName } from "~src/constant/user-data.constant";
 import { processEnvGetString } from "~src/util/env.util";
+import { invokeJobCommand } from "~src/util/job.util";
 import { NamespacedLogger } from "~src/util/logger.util";
-import { paginatedPromises } from "~src/util/promise.util";
+import { paginatedPromises, promisedFn } from "~src/util/promise.util";
 import { emptyResponse } from "~src/util/response.util";
-import { getUserData } from "~src/util/user-data.util";
 import { getIndexedUserIds } from "~src/util/user-index.util";
 
 const logger = new NamespacedLogger("schedule/apply");
@@ -15,8 +17,10 @@ export const handler: Handler<never> = async (evt) => {
   logger.log("Event: ", evt);
 
   const dataBucketName = processEnvGetString("DATA_BUCKET_NAME");
+  const jobsQueueUrl = processEnvGetString("JOBS_QUEUE_URL");
 
   const s3 = new S3Client();
+  const sqs = new SQSClient();
 
   logger.log(`Getting indexed ${BooleanIndexName.HAS_AUTH} user IDs ...`);
   const [hasAuthUserIdsErr, hasAuthUserIds] = await getIndexedUserIds(
@@ -81,35 +85,27 @@ export const handler: Handler<never> = async (evt) => {
     .map(([userId]) => userId);
   logger.log("Potential User IDs:", potentialUserIds);
 
-  logger.log("Getting all potential users data ...");
-  const [usersDataErr, usersData] = await paginatedPromises(
-    potentialUserIds.map((userId) => async () => {
-      const [userDataErr, userData] = await getUserData(logger, s3, dataBucketName, userId);
-      if (userDataErr) {
-        throw userDataErr;
+  logger.log(`Enqueuing ${JobName.UPDATE_USER_STATUS} jobs ...`);
+  const [queueUpdateJobsErr] = await paginatedPromises(
+    potentialUserIds.map((potentialUserId) => async () => {
+      const [queueUpdateJobErr] = await promisedFn(
+        (userId: string) =>
+          sqs.send(invokeJobCommand(jobsQueueUrl, JobName.UPDATE_USER_STATUS, { userId })),
+        potentialUserId
+      );
+      if (queueUpdateJobErr) {
+        throw queueUpdateJobErr;
       }
-      return [userId, userData] as const;
     }),
     { pageSize: 10 }
   );
-  if (usersDataErr) {
-    logger.error(`Error getting potential users data: ${usersDataErr.message}`);
+  if (queueUpdateJobsErr) {
+    logger.error(
+      `Error enqueuing ${JobName.UPDATE_USER_STATUS} jobs: ${queueUpdateJobsErr.message}`
+    );
     return emptyResponse();
   }
+  logger.log(`Done enqueuing ${JobName.UPDATE_USER_STATUS} jobs`);
 
-  for (const [userId, userData] of usersData) {
-    if (userData) {
-      console.log(
-        "POTENTIAL USER DATA",
-        userData.userId,
-        userData.timezoneName,
-        JSON.stringify(userData.schedule)
-      );
-    } else {
-      logger.warn(`No user data found for potential user ID: ${userId}`);
-    }
-  }
-
-  logger.log("Done applying scheduled updates");
   return emptyResponse();
 };

@@ -4,7 +4,8 @@ export enum JobName {
   STORE_AUTH = "STORE_AUTH",
   STORE_TIMEZONE = "STORE_TIMEZONE",
   LOGOUT = "LOGOUT",
-  INDEX_USER_DATA = "INDEX_USER_DATA"
+  INDEX_USER_DATA = "INDEX_USER_DATA",
+  UPDATE_USER_STATUS = "UPDATE_USER_STATUS"
 }
 
 export type Job = {
@@ -46,6 +47,11 @@ export interface IndexUserDataJob extends Job {
   userId: string;
 }
 
+export interface UpdateUserStatusJob extends Job {
+  type: JobName.INDEX_USER_DATA;
+  userId: string;
+}
+
 export type JobByName = {
   [JobName.SEND_RESPONSE]: SendResponseJob;
   [JobName.CHECK_STATUS]: CheckStatusJob;
@@ -53,4 +59,5 @@ export type JobByName = {
   [JobName.STORE_TIMEZONE]: StoreTimezoneJob;
   [JobName.LOGOUT]: LogoutJob;
   [JobName.INDEX_USER_DATA]: IndexUserDataJob;
+  [JobName.UPDATE_USER_STATUS]: UpdateUserStatusJob;
 };

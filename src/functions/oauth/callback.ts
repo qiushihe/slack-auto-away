@@ -66,6 +66,8 @@ export const handler: Handler<OAuthCallbackEvent> = async (evt) => {
     .split(",")
     .map((url) => url.trim());
 
+  const sqs = new SQSClient();
+
   const response = redirectOrJsonResponder(findAssetUrl(publicAssetUrls, "callback-result.html"));
 
   let userId: string | null = null;
@@ -163,7 +165,7 @@ export const handler: Handler<OAuthCallbackEvent> = async (evt) => {
   console.log(`[oauth/callback] Enqueuing ${JobName.STORE_AUTH} job ...`);
   const [queueErr] = await promisedFn(
     (userId: string, authToken: string) =>
-      new SQSClient().send(
+      sqs.send(
         invokeJobCommand(jobsQueueUrl, JobName.STORE_AUTH, { userId, authToken })
       ),
     userId,

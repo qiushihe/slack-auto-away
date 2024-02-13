@@ -20,12 +20,14 @@ type ScheduleCmdEnvVars = {
 export const command: CommandHandler<ScheduleCmdEnvVars> = async (logger, cmd) => {
   logger.log("Handling command: schedule ...");
 
+  const s3 = new S3Client();
+
   logger.log(`Trigger ID: ${cmd.payload.trigger_id}`);
   logger.log(`API URL Prefix: ${cmd.environmentVariable.slackApiUrlPrefix}`);
 
   const [userDataErr, userData] = await getUserData(
     logger,
-    new S3Client(),
+    s3,
     cmd.environmentVariable.dataBucketName,
     cmd.userId
   );

@@ -13,10 +13,12 @@ type LogoutCmdEnvVars = {
 export const command: CommandHandler<LogoutCmdEnvVars> = async (logger, cmd) => {
   logger.log("Handling command: logout ...");
 
+  const sqs = new SQSClient();
+
   logger.log(`Enqueuing ${JobName.LOGOUT} job ...`);
   const [queueErr] = await promisedFn(
     (responseUrl: string, userId: string) =>
-      new SQSClient().send(
+      sqs.send(
         invokeJobCommand(cmd.environmentVariable.jobsQueueUrl, JobName.LOGOUT, {
           responseUrl,
           userId

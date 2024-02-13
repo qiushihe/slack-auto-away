@@ -13,10 +13,12 @@ type StatusCmdEnvVars = {
 export const command: CommandHandler<StatusCmdEnvVars> = async (logger, cmd) => {
   logger.log("Handling command: status ...");
 
+  const sqs = new SQSClient();
+
   logger.log(`Enqueuing ${JobName.CHECK_STATUS} job ...`);
   const [queueErr] = await promisedFn(
     (responseUrl: string, userId: string) =>
-      new SQSClient().send(
+      sqs.send(
         invokeJobCommand(cmd.environmentVariable.jobsQueueUrl, JobName.CHECK_STATUS, {
           responseUrl,
           userId

@@ -54,7 +54,8 @@ module "lambda_role" {
     module.job_functions_store_auth.function_arn,
     module.job_functions_store_timezone.function_arn,
     module.job_functions_logout.function_arn,
-    module.job_functions_index_user_data.function_arn
+    module.job_functions_index_user_data.function_arn,
+    module.job_functions_update_user_status.function_arn,
   ]
 }
 
@@ -241,12 +242,13 @@ module "job_functions_dispatch" {
   source_code_hash = module.job_functions.archive_base64sha256
 
   environment_variables = {
-    FUNCTION_ARN_SEND_RESPONSE   = module.job_functions_send_response.function_arn
-    FUNCTION_ARN_CHECK_STATUS    = module.job_functions_check_status.function_arn
-    FUNCTION_ARN_STORE_AUTH      = module.job_functions_store_auth.function_arn
-    FUNCTION_ARN_STORE_TIMEZONE  = module.job_functions_store_timezone.function_arn
-    FUNCTION_ARN_LOGOUT          = module.job_functions_logout.function_arn
-    FUNCTION_ARN_INDEX_USER_DATA = module.job_functions_index_user_data.function_arn
+    FUNCTION_ARN_SEND_RESPONSE      = module.job_functions_send_response.function_arn
+    FUNCTION_ARN_CHECK_STATUS       = module.job_functions_check_status.function_arn
+    FUNCTION_ARN_STORE_AUTH         = module.job_functions_store_auth.function_arn
+    FUNCTION_ARN_STORE_TIMEZONE     = module.job_functions_store_timezone.function_arn
+    FUNCTION_ARN_LOGOUT             = module.job_functions_logout.function_arn
+    FUNCTION_ARN_INDEX_USER_DATA    = module.job_functions_index_user_data.function_arn,
+    FUNCTION_ARN_UPDATE_USER_STATUS = module.job_functions_update_user_status.function_arn
   }
 
   role_arn      = module.lambda_role.iam_role_arn
@@ -363,6 +365,24 @@ module "job_functions_index_user_data" {
   api_id        = module.lambda_gateway.gateway_api_id
 }
 
+module "job_functions_update_user_status" {
+  source           = "./modules/aws-lambda-function"
+  function_name    = "JobUpdateUserStatus"
+  function_handler = "update-user-status"
+
+  s3_bucket        = module.job_functions.archive_bucket
+  s3_key           = module.job_functions.archive_key
+  source_code_hash = module.job_functions.archive_base64sha256
+
+  environment_variables = {
+    DATA_BUCKET_NAME = module.data_bucket.bucket_name
+  }
+
+  role_arn      = module.lambda_role.iam_role_arn
+  execution_arn = module.lambda_gateway.gateway_execution_arn
+  api_id        = module.lambda_gateway.gateway_api_id
+}
+
 module "event_functions" {
   source          = "./modules/aws-lambda-functions"
   bucket_id       = module.lambda_bucket.bucket_id
@@ -412,6 +432,7 @@ module "schedule_functions_apply" {
 
   environment_variables = {
     DATA_BUCKET_NAME = module.data_bucket.bucket_name
+    JOBS_QUEUE_URL   = aws_sqs_queue.jobs.url
   }
 
   role_arn      = module.lambda_role.iam_role_arn

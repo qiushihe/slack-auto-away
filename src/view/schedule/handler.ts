@@ -21,6 +21,9 @@ const REMOVE_EXCEPTION_DATE_ACTION_ID_REGEXP = new RegExp(
 
 export const buildEventHandler: InteractivityEventHandlerBuilder =
   (opts) => (logger, dataBucketName, slackApiUrlPrefix) => async (payload) => {
+    const s3 = new S3Client();
+    const sqs = new SQSClient();
+
     if (payload.type !== "block_actions" && payload.type !== "view_submission") {
       logger.warn(`Unknown interactivity payload type: ${payload["type"]}`);
       return null;
@@ -173,15 +176,9 @@ export const buildEventHandler: InteractivityEventHandlerBuilder =
 
     if (payload.type === "view_submission") {
       logger.log(`Saving user schedule data ...`);
-      const setUserDataErr = await setUserData(
-        logger,
-        new S3Client(),
-        dataBucketName,
-        payload.user.id,
-        {
-          schedule: scheduleData
-        }
-      );
+      const setUserDataErr = await setUserData(logger, s3, dataBucketName, payload.user.id, {
+        schedule: scheduleData
+      });
       if (setUserDataErr) {
         return new Error(`Unable to save user schedule data: ${setUserDataErr.message}`);
       } else {
@@ -191,9 +188,7 @@ export const buildEventHandler: InteractivityEventHandlerBuilder =
       logger.log(`Enqueuing ${JobName.INDEX_USER_DATA} job ...`);
       const [queueErr] = await promisedFn(
         (userId: string) =>
-          new SQSClient().send(
-            invokeJobCommand(opts.jobsQueueUrl, JobName.INDEX_USER_DATA, { userId })
-          ),
+          sqs.send(invokeJobCommand(opts.jobsQueueUrl, JobName.INDEX_USER_DATA, { userId })),
         payload.user.id
       );
       if (queueErr) {
@@ -204,12 +199,7 @@ export const buildEventHandler: InteractivityEventHandlerBuilder =
     }
 
     logger.log(`Getting user data ...`);
-    const [userDataErr, userData] = await getUserData(
-      logger,
-      new S3Client(),
-      dataBucketName,
-      payload.user.id
-    );
+    const [userDataErr, userData] = await getUserData(logger, s3, dataBucketName, payload.user.id);
     if (userDataErr) {
       return new Error(`Unable to get user data: ${userDataErr.message}`);
     } else {

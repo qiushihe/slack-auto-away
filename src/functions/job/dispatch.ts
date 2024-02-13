@@ -26,7 +26,8 @@ export const handler: Handler<JobProcessEvent> = async (evt) => {
     [JobName.STORE_AUTH]: processEnvGetString("FUNCTION_ARN_STORE_AUTH"),
     [JobName.STORE_TIMEZONE]: processEnvGetString("FUNCTION_ARN_STORE_TIMEZONE"),
     [JobName.LOGOUT]: processEnvGetString("FUNCTION_ARN_LOGOUT"),
-    [JobName.INDEX_USER_DATA]: processEnvGetString("FUNCTION_ARN_INDEX_USER_DATA")
+    [JobName.INDEX_USER_DATA]: processEnvGetString("FUNCTION_ARN_INDEX_USER_DATA"),
+    [JobName.UPDATE_USER_STATUS]: processEnvGetString("FUNCTION_ARN_UPDATE_USER_STATUS")
   };
 
   logger.log(`Dispatching jobs ...`);

@@ -22,8 +22,11 @@ export const handler: Handler<StoreTimezoneEvent> = async (evt) => {
   const dataBucketName = processEnvGetString("DATA_BUCKET_NAME");
   const jobsQueueUrl = processEnvGetString("JOBS_QUEUE_URL");
 
+  const s3 = new S3Client();
+  const sqs = new SQSClient();
+
   logger.log("Storing user timezone ...");
-  const setUserDataErr = await setUserData(logger, new S3Client(), dataBucketName, evt.Job.userId, {
+  const setUserDataErr = await setUserData(logger, s3, dataBucketName, evt.Job.userId, {
     timezoneName: evt.Job.timezoneName
   });
   if (setUserDataErr) {
@@ -35,7 +38,7 @@ export const handler: Handler<StoreTimezoneEvent> = async (evt) => {
   logger.log(`Enqueuing ${JobName.INDEX_USER_DATA} job ...`);
   const [queueErr] = await promisedFn(
     (userId: string) =>
-      new SQSClient().send(invokeJobCommand(jobsQueueUrl, JobName.INDEX_USER_DATA, { userId })),
+      sqs.send(invokeJobCommand(jobsQueueUrl, JobName.INDEX_USER_DATA, { userId })),
     evt.Job.userId
   );
   if (queueErr) {

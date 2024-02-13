@@ -22,13 +22,11 @@ export const handler: Handler<LogoutEvent> = async (evt) => {
   const dataBucketName = processEnvGetString("DATA_BUCKET_NAME");
   const jobsQueueUrl = processEnvGetString("JOBS_QUEUE_URL");
 
+  const s3 = new S3Client();
+  const sqs = new SQSClient();
+
   logger.log(`Deleting user data ...`);
-  const deleteUserDataErr = await deleteUserData(
-    logger,
-    new S3Client(),
-    dataBucketName,
-    evt.Job.userId
-  );
+  const deleteUserDataErr = await deleteUserData(logger, s3, dataBucketName, evt.Job.userId);
   let responseMessage: string;
   if (deleteUserDataErr) {
     logger.error(`Error deleting user data: ${deleteUserDataErr.message}`);
@@ -41,7 +39,7 @@ export const handler: Handler<LogoutEvent> = async (evt) => {
   logger.log(`Enqueuing ${JobName.INDEX_USER_DATA} job ...`);
   const [queueErr] = await promisedFn(
     (userId: string) =>
-      new SQSClient().send(invokeJobCommand(jobsQueueUrl, JobName.INDEX_USER_DATA, { userId })),
+      sqs.send(invokeJobCommand(jobsQueueUrl, JobName.INDEX_USER_DATA, { userId })),
     evt.Job.userId
   );
   if (queueErr) {

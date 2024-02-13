@@ -24,6 +24,8 @@ export const handler: Handler<CheckStatusEvent> = async (evt) => {
 
   const dataBucketName = processEnvGetString("DATA_BUCKET_NAME");
 
+  const s3 = new S3Client();
+
   const authStatus: string[] = [];
   const timezoneStatus: string[] = [];
   const scheduleStatus: string[] = [];
@@ -31,7 +33,7 @@ export const handler: Handler<CheckStatusEvent> = async (evt) => {
   logger.log(`Checking user auth index ...`);
   const [hasAuthErr, hasAuth] = await isUserIdIndexed(
     logger,
-    new S3Client(),
+    s3,
     dataBucketName,
     BooleanIndexName.HAS_AUTH,
     evt.Job.userId
@@ -47,7 +49,7 @@ export const handler: Handler<CheckStatusEvent> = async (evt) => {
       logger.log(`Getting user data ...`);
       const [userDataErr, userData] = await getUserData(
         logger,
-        new S3Client(),
+        s3,
         dataBucketName,
         evt.Job.userId
       );

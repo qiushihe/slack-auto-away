@@ -59,6 +59,8 @@ export const handler: Handler<EventSubscriptionEvent> = async (evt) => {
   const loggableUserIdsString = processEnvGetString("LOGGABLE_USER_IDS");
   const jobsQueueUrl = processEnvGetString("JOBS_QUEUE_URL");
 
+  const sqs = new SQSClient();
+
   const loggableUserIds = (loggableUserIdsString || "").trim().split(",");
 
   const eventPayload = extractGenericEventBody(
@@ -90,7 +92,7 @@ export const handler: Handler<EventSubscriptionEvent> = async (evt) => {
         logger.log(`Enqueuing ${JobName.STORE_TIMEZONE} job ...`);
         const [queueErr] = await promisedFn(
           (userId: string, timezoneName: string) =>
-            new SQSClient().send(
+            sqs.send(
               invokeJobCommand(jobsQueueUrl, JobName.STORE_TIMEZONE, { userId, timezoneName })
             ),
           user.id,

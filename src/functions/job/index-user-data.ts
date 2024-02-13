@@ -61,25 +61,17 @@ export const handler: Handler<IndexUserDataEvent> = async (evt) => {
 
   const dataBucketName = processEnvGetString("DATA_BUCKET_NAME");
 
+  const s3 = new S3Client();
+
   logger.log(`Getting user data ...`);
-  const [userDataErr, userData] = await getUserData(
-    logger,
-    new S3Client(),
-    dataBucketName,
-    evt.Job.userId
-  );
+  const [userDataErr, userData] = await getUserData(logger, s3, dataBucketName, evt.Job.userId);
   if (userDataErr) {
     logger.error(`Error getting user data: ${userDataErr.message}`);
   } else {
     logger.log(`Done getting user data`);
   }
 
-  const updateBooleanIndices = booleanIndicesUpdater(
-    logger,
-    new S3Client(),
-    dataBucketName,
-    evt.Job.userId
-  );
+  const updateBooleanIndices = booleanIndicesUpdater(logger, s3, dataBucketName, evt.Job.userId);
 
   if (userData) {
     const { authToken, timezoneName, schedule } = userData;
