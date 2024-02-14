@@ -2,3 +2,5 @@ aws_access_key               = "--AWS-ACCESS-KEY--"
 aws_secret_key               = "--AWS-SECRET-KEY--"
 slack_app_client_id          = "--SLACK-APP-CLIENT-ID--"
 slack_app_client_secret      = "--SLACK-APP-CLIENT-SECRET--"
+slack_app_signing_secret     = "--SLACK-APP-SIGNING-SECRET-"
+loggable_slack_user_ids      = ["user-id-yo"]
