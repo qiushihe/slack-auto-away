@@ -59,6 +59,7 @@ export const handler: Handler<OAuthCallbackEvent> = async (evt) => {
   console.log("[oauth/callback] Event: ", evt);
 
   const jobsQueueUrl = processEnvGetString("JOBS_QUEUE_URL");
+  const slackApiUrlPrefix = processEnvGetString("SLACK_API_URL_PREFIX");
   const clientId = processEnvGetString("CLIENT_ID");
   const clientSecret = processEnvGetString("CLIENT_SECRET");
   const oauthCallbackUrl = processEnvGetString("OAUTH_CALLBACK_URL");
@@ -76,7 +77,7 @@ export const handler: Handler<OAuthCallbackEvent> = async (evt) => {
   console.log("[oauth/callback] Fetching user token ...");
   const [fetchTokenErr, fetchTokenRes] = await promisedFn(
     (code: string) =>
-      fetch("https://slack.com/api/oauth.v2.access", {
+      fetch(`${slackApiUrlPrefix}/oauth.v2.access`, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded"

@@ -7,7 +7,8 @@ import { processEnvGetString } from "~src/util/env.util";
 import { invokeJobCommand } from "~src/util/job.util";
 import { NamespacedLogger } from "~src/util/logger.util";
 import { promisedFn } from "~src/util/promise.util";
-import { extractGenericEventBody, IVerifiableEvent } from "~src/util/request.util";
+import { eventBodyExtractor, IVerifiableEvent } from "~src/util/request.util";
+import { emptyResponse } from "~src/util/response.util";
 
 interface EventSubscriptionEvent extends IVerifiableEvent {}
 
@@ -64,23 +65,22 @@ export const handler: Handler<EventSubscriptionEvent> = async (evt) => {
 
   const loggableUserIds = (loggableUserIdsString || "").trim().split(",");
 
-  const eventPayload = extractGenericEventBody(
-    logger,
-    false,
-    evt,
-    "v0",
-    signingSecret
-  ) as EventPayload;
+  const extractEventBody = eventBodyExtractor<EventPayload>(logger, false, "v0", signingSecret);
+  const [extractionErr, evtPayload] = extractEventBody(evt);
+  if (extractionErr) {
+    logger.error(`Error extracting event body: ${extractionErr.message}`);
+    return emptyResponse(500);
+  }
 
-  if (eventPayload.type === EventType.UrlVerification) {
+  if (evtPayload.type === EventType.UrlVerification) {
     logger.log("Received URL Verification event");
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ challenge: eventPayload.challenge })
+      body: JSON.stringify({ challenge: evtPayload.challenge })
     };
-  } else if (eventPayload.type === EventType.EventCallback) {
-    const slackEvent = eventPayload.event;
+  } else if (evtPayload.type === EventType.EventCallback) {
+    const slackEvent = evtPayload.event;
     if (slackEvent.type === SlackEventType.UserChange) {
       const user = (slackEvent as UserChangeSlackEvent).user;
       if (loggableUserIds.includes(user.id)) {
@@ -112,7 +112,7 @@ export const handler: Handler<EventSubscriptionEvent> = async (evt) => {
     }
     return { statusCode: 202 };
   } else {
-    logger.warn(`Unknown event type: ${(eventPayload as BaseEventPayload).type}`);
+    logger.warn(`Unknown event type: ${(evtPayload as BaseEventPayload).type}`);
     return { statusCode: 204 };
   }
 };

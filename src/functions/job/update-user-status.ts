@@ -5,6 +5,7 @@ import { UpdateUserStatusJob } from "~src/constant/job.constant";
 import { Weekday } from "~src/type/date.type";
 import { processEnvGetString } from "~src/util/env.util";
 import { NamespacedLogger } from "~src/util/logger.util";
+import { promisedFn } from "~src/util/promise.util";
 import { emptyResponse } from "~src/util/response.util";
 import { addMinutes } from "~src/util/time.util";
 import {
@@ -18,12 +19,43 @@ type UpdateUserStatusEvent = {
   Job: UpdateUserStatusJob;
 };
 
+type SetPresenceResponse = {
+  ok: boolean;
+  error?: string;
+};
+
+const userPresenceSetter =
+  (apiUrlPrefix: string, authToken: string) =>
+  async (presence: "auto" | "away"): Promise<[Error, null] | [null, SetPresenceResponse]> => {
+    const [reqErr, res] = await promisedFn(() =>
+      fetch(`${apiUrlPrefix}/users.setPresence`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ presence })
+      })
+    );
+    if (reqErr) {
+      return [reqErr, null];
+    }
+
+    const [jsonErr, resJson] = await promisedFn(() => res.json() as Promise<SetPresenceResponse>);
+    if (jsonErr) {
+      return [jsonErr, null];
+    }
+
+    return [null, resJson];
+  };
+
 const logger = new NamespacedLogger("job/update-user-status");
 
 export const handler: Handler<UpdateUserStatusEvent> = async (evt) => {
   logger.log("Event: ", evt);
 
   const dataBucketName = processEnvGetString("DATA_BUCKET_NAME");
+  const slackApiUrlPrefix = processEnvGetString("SLACK_API_URL_PREFIX");
 
   const s3 = new S3Client();
 
@@ -93,21 +125,48 @@ export const handler: Handler<UpdateUserStatusEvent> = async (evt) => {
     timeAway = userData.schedule.sundayTimeAway;
   }
 
-  console.log("AUTO", timeAuto, addMinutes(timeAuto, -10), addMinutes(timeAuto, 10));
-  console.log("AWAY", timeAway, addMinutes(timeAway, -10), addMinutes(timeAway, 10));
+  logger.log(`Local timezone name: ${userData.timezoneName}`);
+  logger.log(`Effective local time for setting status to auto ${timeAuto}`);
+  logger.log(`Effective local time for setting status to away ${timeAway}`);
 
+  const localTimeAutoStart = addMinutes(timeAuto, -10);
+  const localTimeAutoEnd = addMinutes(timeAuto, 10);
+  const localTimeAwayStart = addMinutes(timeAway, -10);
+  const localTimeAwayEnd = addMinutes(timeAway, 10);
+
+  logger.log("Checking local time ranges:", {
+    autoStart: localTimeAutoStart,
+    autoEnd: localTimeAutoEnd,
+    awayStart: localTimeAwayStart,
+    awayEnd: localTimeAwayEnd
+  });
+
+  const setUserPresence = userPresenceSetter(slackApiUrlPrefix, userData.authToken);
   const isLocalTimeInRange = localTimeInRangePredicate();
-  if (
-    isLocalTimeInRange(userData.timezoneName, addMinutes(timeAuto, -10), addMinutes(timeAuto, 10))
-  ) {
+
+  if (isLocalTimeInRange(userData.timezoneName, localTimeAutoStart, localTimeAutoEnd)) {
     logger.log(`Updating away status to "auto" for user ID: ${evt.Job.userId} ...`);
-    console.log("!!! Set status to AUTO");
+    const [setPresenceErr, setPresenceRes] = await setUserPresence("auto");
+    if (setPresenceErr) {
+      logger.error(`Error setting user presence: ${setPresenceErr.message}`);
+      return emptyResponse();
+    }
+    if (!setPresenceRes.ok) {
+      logger.error(`Unable to set user presence: ${setPresenceRes?.error}`);
+      return emptyResponse();
+    }
     logger.log(`Done updating away status to "auto" for user ID: ${evt.Job.userId}`);
-  } else if (
-    isLocalTimeInRange(userData.timezoneName, addMinutes(timeAway, -10), addMinutes(timeAway, 10))
-  ) {
+  } else if (isLocalTimeInRange(userData.timezoneName, localTimeAwayStart, localTimeAwayEnd)) {
     logger.log(`Updating away status to "away" for user ID: ${evt.Job.userId} ...`);
-    console.log("!!! Set status to AWAY");
+    const [setPresenceErr, setPresenceRes] = await setUserPresence("away");
+    if (setPresenceErr) {
+      logger.error(`Error setting user presence: ${setPresenceErr.message}`);
+      return emptyResponse();
+    }
+    if (!setPresenceRes.ok) {
+      logger.error(`Unable to set user presence: ${setPresenceRes?.error}`);
+      return emptyResponse();
+    }
     logger.log(`Done updating away status to "away" for user ID: ${evt.Job.userId}`);
   } else {
     logger.log(

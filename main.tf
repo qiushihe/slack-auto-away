@@ -122,11 +122,12 @@ module "oauth_functions_callback" {
   source_code_hash = module.oauth_functions.archive_base64sha256
 
   environment_variables = {
-    JOBS_QUEUE_URL     = aws_sqs_queue.jobs.url
-    CLIENT_ID          = var.slack_app_client_id
-    CLIENT_SECRET      = var.slack_app_client_secret
-    OAUTH_CALLBACK_URL = local.oauth_callback_url
-    PUBLIC_ASSET_URLS  = join(",", local.public_asset_urls)
+    JOBS_QUEUE_URL       = aws_sqs_queue.jobs.url
+    SLACK_API_URL_PREFIX = var.slack_api_url_prefix
+    CLIENT_ID            = var.slack_app_client_id
+    CLIENT_SECRET        = var.slack_app_client_secret
+    OAUTH_CALLBACK_URL   = local.oauth_callback_url
+    PUBLIC_ASSET_URLS    = join(",", local.public_asset_urls)
   }
 
   role_arn      = module.lambda_role.iam_role_arn
@@ -348,7 +349,8 @@ module "job_functions_update_user_status" {
   source_code_hash = module.job_functions.archive_base64sha256
 
   environment_variables = {
-    DATA_BUCKET_NAME = module.data_bucket.bucket_name
+    DATA_BUCKET_NAME     = module.data_bucket.bucket_name
+    SLACK_API_URL_PREFIX = var.slack_api_url_prefix
   }
 
   role_arn      = module.lambda_role.iam_role_arn
