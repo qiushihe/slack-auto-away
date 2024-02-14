@@ -98,3 +98,23 @@ Go to https://api.slack.com/apps and set up an Slack App, with the following:
   * Request URL: <the `event-subscription` Lambda function URL>
   * Subscribe to events on behalf of users:
     * `user_change`: Requires the `users:read` scope
+
+The various command/callback URLs can be found in the output of the deployment script:
+
+```bash
+$ yarn deploy
+
+...
+...
+...
+
+Apply complete! Resources: 0 added, 2 changed, 0 destroyed.
+
+Outputs:
+
+event_subscription_url = "https://SOMETHING.execute-api.us-east-1.amazonaws.com/slack-auto-away/event-subscription"
+interactivity_default_url = "https://SOMETHING.execute-api.us-east-1.amazonaws.com/slack-auto-away/interactivity-default"
+oauth_callback_url = "https://SOMETHING.execute-api.us-east-1.amazonaws.com/slack-auto-away/oauth-callback"
+oauth_start_url = "https://SOMETHING.execute-api.us-east-1.amazonaws.com/slack-auto-away/oauth-start"
+slash_command_default_url = "https://SOMETHING.execute-api.us-east-1.amazonaws.com/slack-auto-away/slash-command-default"
+```
