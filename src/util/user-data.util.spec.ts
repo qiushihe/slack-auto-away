@@ -9,6 +9,7 @@ import {
 } from "@aws-sdk/client-s3";
 
 import { USER_DATA_PREFIX, UserData } from "../constant/user-data.constant";
+import { TimezoneName } from "../type/timezone.generated.type";
 import { NamespacedLogger, UnitTestNamespacedLogger } from "./logger.util";
 import { deleteUserData, getUserData, setUserData } from "./user-data.util";
 import { uuidV4 } from "./uuid.util";
@@ -81,7 +82,7 @@ describe("util / user-data", () => {
   describe("setUserData", () => {
     it("should return error when bucket does not exist", async () => {
       const err = await setUserData(logger, s3, bucketName, userId, {
-        timezoneName: "Zone/Twilight"
+        timezoneName: TimezoneName.America__Regina
       });
 
       expect(err).toBeInstanceOf(S3ServiceException);
@@ -89,10 +90,10 @@ describe("util / user-data", () => {
     });
 
     describe("when bucket exists", () => {
-      let timezoneName: string;
+      let timezoneName: TimezoneName;
 
       beforeEach(async () => {
-        timezoneName = "Zone/Twilight";
+        timezoneName = TimezoneName.America__Regina;
 
         await s3.send(new CreateBucketCommand({ Bucket: bucketName }));
       });

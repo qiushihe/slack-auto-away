@@ -13,7 +13,7 @@
     "test:lint:fix:terraform": "terraform fmt -recursive",
     "test:unit": "npm-run-all test:unit:clean test:unit:jest",
     "test:unit:clean": "shx rm -rf .coverage",
-    "test:unit:jest": "jest --config jest.config.json --runInBand --coverage",
+    "test:unit:jest": "jest --config jest.config.json --runInBand --logHeapUsage --coverage",
     "build": "npm-run-all build:clean build:type build:rollup",
     "build:clean": "shx rm -rf .build",
     "build:type": "npm-run-all build:type:timezone",
