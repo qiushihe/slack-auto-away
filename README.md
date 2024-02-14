@@ -16,8 +16,8 @@ Slack Apps
 * Slack commands:
   * Command: `/auto-away`
   * Request URL: <the `slash-command-default` Lambda function URL>
-  * Short Description: Configure auto-away
-  * Usage Hint: [help][from 9am to 5pm]
+  * Short Description: Handles various slash-commands
+  * Usage Hint: [help, auth, schedule, status, logout]
 * Interactivity:
   * Request URL: <the `interactivity-default` Lambda function URL>
 * Event subscription:
