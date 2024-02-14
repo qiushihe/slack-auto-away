@@ -165,9 +165,7 @@ export const handler: Handler<OAuthCallbackEvent> = async (evt) => {
   console.log(`[oauth/callback] Enqueuing ${JobName.STORE_AUTH} job ...`);
   const [queueErr] = await promisedFn(
     (userId: string, authToken: string) =>
-      sqs.send(
-        invokeJobCommand(jobsQueueUrl, JobName.STORE_AUTH, { userId, authToken })
-      ),
+      sqs.send(invokeJobCommand(jobsQueueUrl, JobName.STORE_AUTH, { userId, authToken })),
     userId,
     userAccessToken
   );

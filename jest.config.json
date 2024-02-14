@@ -19,6 +19,6 @@
   "transform": {
     "^.+\\.ts$": "ts-jest"
   },
-  "collectCoverageFrom": ["**/*.ts"],
+  "collectCoverageFrom": ["<rootDir>/src/**/*.ts"],
   "coverageDirectory": ".coverage"
 }

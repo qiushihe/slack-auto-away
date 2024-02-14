@@ -2,6 +2,7 @@ import { SQSClient } from "@aws-sdk/client-sqs";
 import { Handler } from "aws-lambda";
 
 import { JobName } from "~src/constant/job.constant";
+import { TimezoneName } from "~src/type/timezone.generated.type";
 import { processEnvGetString } from "~src/util/env.util";
 import { invokeJobCommand } from "~src/util/job.util";
 import { NamespacedLogger } from "~src/util/logger.util";
@@ -91,7 +92,7 @@ export const handler: Handler<EventSubscriptionEvent> = async (evt) => {
       if (user.tz) {
         logger.log(`Enqueuing ${JobName.STORE_TIMEZONE} job ...`);
         const [queueErr] = await promisedFn(
-          (userId: string, timezoneName: string) =>
+          (userId: string, timezoneName: TimezoneName) =>
             sqs.send(
               invokeJobCommand(jobsQueueUrl, JobName.STORE_TIMEZONE, { userId, timezoneName })
             ),

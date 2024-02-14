@@ -30,6 +30,6 @@ export type UserSchedule = {
 export type UserData = {
   userId: string;
   authToken?: string;
-  timezoneName?: string;
+  timezoneName?: TimezoneName;
   schedule?: UserSchedule;
 };

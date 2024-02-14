@@ -47,12 +47,7 @@ export const handler: Handler<CheckStatusEvent> = async (evt) => {
 
     if (hasAuth) {
       logger.log(`Getting user data ...`);
-      const [userDataErr, userData] = await getUserData(
-        logger,
-        s3,
-        dataBucketName,
-        evt.Job.userId
-      );
+      const [userDataErr, userData] = await getUserData(logger, s3, dataBucketName, evt.Job.userId);
       if (userDataErr) {
         logger.error(`Error getting user data: ${userDataErr.message}`);
         timezoneStatus.push("Error");

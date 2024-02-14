@@ -1,3 +1,5 @@
+import { TimezoneName } from "~src/type/timezone.generated.type";
+
 export enum JobName {
   SEND_RESPONSE = "SEND_RESPONSE",
   CHECK_STATUS = "CHECK_STATUS",
@@ -33,7 +35,7 @@ export interface StoreAuthJob extends Job {
 export interface StoreTimezoneJob extends Job {
   type: JobName.STORE_TIMEZONE;
   userId: string;
-  timezoneName: string;
+  timezoneName: TimezoneName;
 }
 
 export interface LogoutJob extends Job {

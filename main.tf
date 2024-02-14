@@ -1,6 +1,5 @@
 locals {
   package_name              = "slack-auto-away"
-  dummy_hello_url           = format("%s/dummy-hello", module.lambda_gateway.invocation_url)
   oauth_start_url           = format("%s/oauth-start", module.lambda_gateway.invocation_url)
   oauth_callback_url        = format("%s/oauth-callback", module.lambda_gateway.invocation_url)
   slash_command_default_url = format("%s/slash-command-default", module.lambda_gateway.invocation_url)
@@ -81,32 +80,6 @@ module "public_assets" {
 }
 
 # -------------------------------------------------------------------------------------------------
-
-module "dummy_functions" {
-  source          = "./modules/aws-lambda-functions"
-  bucket_id       = module.lambda_bucket.bucket_id
-  source_dir      = "${abspath(path.module)}/.build/src/functions/dummy"
-  output_dir      = "${abspath(path.module)}/.archives"
-  output_filename = "dummy-functions.zip"
-}
-
-module "dummy_functions_hello" {
-  source           = "./modules/aws-lambda-function"
-  function_name    = "DummyHello"
-  function_handler = "hello"
-  function_method  = "GET"
-  function_path    = "/dummy-hello"
-
-  s3_bucket        = module.dummy_functions.archive_bucket
-  s3_key           = module.dummy_functions.archive_key
-  source_code_hash = module.dummy_functions.archive_base64sha256
-
-  environment_variables = {}
-
-  role_arn      = module.lambda_role.iam_role_arn
-  execution_arn = module.lambda_gateway.gateway_execution_arn
-  api_id        = module.lambda_gateway.gateway_api_id
-}
 
 module "oauth_functions" {
   source          = "./modules/aws-lambda-functions"

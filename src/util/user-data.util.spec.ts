@@ -45,11 +45,11 @@ describe("util / user-data", () => {
         await s3.send(new CreateBucketCommand({ Bucket: bucketName }));
       });
 
-      it("should return error when user data file does not exist", async () => {
-        const [err] = await getUserData(logger, s3, bucketName, userId);
+      it("should return null when user data file does not exist", async () => {
+        const [err, data] = await getUserData(logger, s3, bucketName, userId);
 
-        expect(err).toBeInstanceOf(S3ServiceException);
-        expect(err as S3ServiceException).toHaveProperty("name", "NoSuchKey");
+        expect(err).toBeNull();
+        expect(data).toBeNull();
       });
 
       describe("when user data file exists", () => {
